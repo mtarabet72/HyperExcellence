@@ -1,0 +1,137 @@
+// ============================================================
+// HyperExcellence - Constantes centrales
+// Source de vérité unique pour rôles, gravités, statuts, piliers
+// ============================================================
+
+// ---------- RÔLES (Circuit 9) ----------
+export const ROLES = {
+  ADMIN: 'ADMIN',
+  CHEF_SECTEUR: 'CHEF_SECTEUR',
+  CHEF_DEPARTEMENT: 'CHEF_DEPARTEMENT',
+  CHEF_RAYON: 'CHEF_RAYON',
+  SUPERVISEUR: 'SUPERVISEUR',
+  CHEF_SECURITE: 'CHEF_SECURITE',
+  ASJ: 'ASJ',
+  CHEF_CAISSE: 'CHEF_CAISSE',
+  MAITRE_METIER: 'MAITRE_METIER',
+  EMPLOYE: 'EMPLOYE',
+} as const;
+
+export type UserRole = (typeof ROLES)[keyof typeof ROLES];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Administrateur QHSE',
+  CHEF_SECTEUR: 'Chef de Secteur',
+  CHEF_DEPARTEMENT: 'Chef de Département',
+  CHEF_RAYON: 'Chef de Rayon',
+  SUPERVISEUR: 'Superviseur Commerce',
+  CHEF_SECURITE: 'Chef Sécurité',
+  ASJ: 'Agent ASJ',
+  CHEF_CAISSE: 'Chef de Caisse',
+  MAITRE_METIER: 'Maître Métier',
+  EMPLOYE: 'Employé / Vendeur',
+};
+
+// ---------- PILIERS (Circuits 1, 2, 4, 5) ----------
+export const PILIERS = {
+  1: { nom: 'Confort et Environnement Client', tacheDebut: 1, tacheFin: 26 },
+  2: { nom: 'Service Client SBAM', tacheDebut: 27, tacheFin: 185 },
+  3: { nom: 'Libre Service et Ruptures', tacheDebut: 189, tacheFin: 214 },
+  4: { nom: 'Caisses', tacheDebut: 220, tacheFin: 228 },
+} as const;
+
+export type PilierId = keyof typeof PILIERS;
+
+// ---------- GRAVITÉ NON CONFORMITÉ (Circuit 6) ----------
+export const GRAVITES = {
+  MINEURE: 'MINEURE',
+  MAJEURE: 'MAJEURE',
+  CRITIQUE: 'CRITIQUE',
+} as const;
+
+export type Gravite = (typeof GRAVITES)[keyof typeof GRAVITES];
+
+export const GRAVITE_LABELS: Record<Gravite, string> = {
+  MINEURE: 'Mineure',
+  MAJEURE: 'Majeure',
+  CRITIQUE: 'Critique',
+};
+
+// Qui est notifié selon la gravité (Circuit 6, étape 3)
+export const GRAVITE_NOTIFICATION: Record<Gravite, UserRole[]> = {
+  MINEURE: [ROLES.CHEF_RAYON],
+  MAJEURE: [ROLES.CHEF_RAYON, ROLES.CHEF_SECTEUR],
+  CRITIQUE: [ROLES.CHEF_RAYON, ROLES.CHEF_SECTEUR, ROLES.ADMIN],
+};
+
+export const GRAVITE_COLORS: Record<Gravite, string> = {
+  MINEURE: '#eab308', // jaune
+  MAJEURE: '#f97316', // orange
+  CRITIQUE: '#ef4444', // rouge
+};
+
+// ---------- STATUT TÂCHE (aligné avec Appwrite) ----------
+export const TASK_STATUS = {
+  FAIT: 'FAIT',
+  NON_FAIT: 'NON_FAIT',
+  ECART: 'ECART',
+  NON_APPLICABLE: 'NON_APPLICABLE',
+} as const;
+
+export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  FAIT: 'Fait',
+  NON_FAIT: 'Non fait',
+  ECART: 'Écart',
+  NON_APPLICABLE: 'Non applicable',
+};
+
+// ---------- STATUT NON CONFORMITÉ ----------
+export const NC_STATUS = {
+  OUVERTE: 'OUVERTE',
+  EN_COURS: 'EN_COURS',
+  CLOTUREE: 'CLOTUREE',
+} as const;
+
+export type NCStatus = (typeof NC_STATUS)[keyof typeof NC_STATUS];
+
+export const NC_STATUS_LABELS: Record<NCStatus, string> = {
+  OUVERTE: 'Ouverte',
+  EN_COURS: 'En cours',
+  CLOTUREE: 'Clôturée',
+};
+
+// ---------- NIVEAU DE RISQUE ZONE (HACCP) ----------
+export const RISK_LEVELS = {
+  CRITIQUE: 'CRITIQUE',
+  MAJEUR: 'MAJEUR',
+  MINEUR: 'MINEUR',
+} as const;
+
+export type RiskLevel = (typeof RISK_LEVELS)[keyof typeof RISK_LEVELS];
+
+// ---------- FRÉQUENCE CHECKLIST ----------
+export const FREQUENCIES = {
+  QUOTIDIENNE: 'QUOTIDIENNE',
+  HEBDO: 'HEBDO',
+  MENSUELLE: 'MENSUELLE',
+  PONCTUELLE: 'PONCTUELLE',
+} as const;
+
+export type Frequency = (typeof FREQUENCIES)[keyof typeof FREQUENCIES];
+
+// ---------- APPWRITE : IDs de base et collections ----------
+export const APPWRITE_DATABASE_ID = 'hyperclean_pro';
+
+export const COLLECTIONS = {
+  DEPARTMENTS: 'departments',
+  ZONES: 'zones',
+  PROFILES: 'profiles',
+  CHECKLIST_TEMPLATES: 'checklist_templates',
+  TASK_TEMPLATES: 'task_templates',
+  TASK_EXECUTIONS: 'task_executions',
+  NON_CONFORMITES: 'non_conformites',
+  CAPA: 'capa',
+  AUDIT_LOG: 'audit_log',
+} as const;
