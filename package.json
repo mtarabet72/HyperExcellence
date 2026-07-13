@@ -1,0 +1,12 @@
+{
+  "name": "hyperexcellence",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "provision": "node scripts/appwrite-setup.mjs"
+  },
+  "dependencies": {
+    "node-appwrite": "^14.0.0"
+  }
+}
