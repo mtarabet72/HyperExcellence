@@ -3,9 +3,10 @@ import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import ChecklistPage from './pages/ChecklistPage';
+import NonConformitesPage from './pages/NonConformitesPage';
 import { ROLE_LABELS, ROLES } from './constants';
 
-type View = 'home' | 'employees' | 'checklist';
+type View = 'home' | 'employees' | 'checklist' | 'nonconformites';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -38,6 +39,7 @@ function App() {
         </div>
         {view === 'employees' && <AdminEmployeesPage />}
         {view === 'checklist' && <ChecklistPage />}
+        {view === 'nonconformites' && <NonConformitesPage />}
       </div>
     );
   }
@@ -57,6 +59,13 @@ function App() {
             className="rounded-lg bg-amber-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
           >
             Circuit 1 — Confort
+          </button>
+
+          <button
+            onClick={() => setView('nonconformites')}
+            className="rounded-lg bg-red-500/20 text-red-400 border border-red-900 px-4 py-2 text-sm block mx-auto w-56"
+          >
+            Non Conformités
           </button>
 
           {isAdmin && (
