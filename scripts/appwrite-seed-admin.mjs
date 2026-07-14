@@ -20,9 +20,18 @@ const PIN = '123456';
 const FULL_NAME = 'Mohamed - Admin QHSE';
 const EMAIL = `${BADGE_NUMBER.toLowerCase()}@hyperexcellence.local`;
 
+// ⚠️ DOIT rester strictement identique à deriveAppwritePassword()
+// dans src/lib/auth.ts, sinon la connexion échouera.
+function deriveAppwritePassword(pin) {
+  const cleanPin = pin.trim().padStart(4, '0');
+  return `HXC-${cleanPin}-SEC`;
+}
+
 async function run() {
+  const password = deriveAppwritePassword(PIN);
+
   console.log('Création du compte Auth...');
-  const user = await users.create(ID.unique(), EMAIL, undefined, PIN, FULL_NAME);
+  const user = await users.create(ID.unique(), EMAIL, undefined, password, FULL_NAME);
   console.log('✅ Compte Auth créé:', user.$id);
 
   console.log('Création du profil...');
@@ -38,10 +47,10 @@ async function run() {
   console.log('✅ Profil ADMIN créé et lié.');
 
   console.log('');
-  console.log('=== IDENTIFIANTS DE CONNEXION ===');
+  console.log('=== IDENTIFIANTS DE CONNEXION (à saisir dans l\'app) ===');
   console.log('Badge:', BADGE_NUMBER);
   console.log('PIN:', PIN);
-  console.log('==================================');
+  console.log('==========================================================');
 }
 
 run().catch((e) => {
