@@ -13,6 +13,7 @@ interface CircuitOption {
   departmentId: string;
   title: string;
   subtitle: string;
+  transversal?: boolean; // visible pour tous les rôles transversaux, indépendamment du rayon
 }
 
 const CIRCUITS: CircuitOption[] = [
@@ -22,6 +23,14 @@ const CIRCUITS: CircuitOption[] = [
     departmentId: 'confort_environnement',
     title: 'Circuit 1 — Confort & Environnement',
     subtitle: 'Parking & Entrée principale',
+  },
+  {
+    checklistId: 'circuit-3-pnd-haccp',
+    zoneId: '6a56a89e0038906c0f21',
+    departmentId: 'boucherie',
+    title: 'Circuit 3 — PND HACCP',
+    subtitle: 'Nettoyage & Désinfection (rayons frais)',
+    transversal: true,
   },
   {
     checklistId: 'circuit-4-libre-service',
@@ -39,16 +48,24 @@ const CIRCUITS: CircuitOption[] = [
   },
 ];
 
-// Rôles transversaux : accès à tous les circuits, quel que soit leur rayon
+// Rôles ayant accès à TOUS les circuits, quel que soit leur rayon
 const ROLES_TRANSVERSAUX: string[] = [ROLES.ADMIN, ROLES.CHEF_SECTEUR];
+
+// Rôles ayant accès aux circuits marqués "transversal", en plus de leur propre rayon
+const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
 
 export default function ChecklistPage() {
   const { profile } = useAuth();
 
-  const visibleCircuits =
-    profile && ROLES_TRANSVERSAUX.includes(profile.role)
-      ? CIRCUITS
-      : CIRCUITS.filter((c) => c.departmentId === profile?.department_id);
+  const visibleCircuits = !profile
+    ? []
+    : ROLES_TRANSVERSAUX.includes(profile.role)
+    ? CIRCUITS
+    : CIRCUITS.filter(
+        (c) =>
+          c.departmentId === profile.department_id ||
+          (c.transversal && ROLES_ACCES_TRANSVERSAL.includes(profile.role))
+      );
 
   const [selectedCircuit, setSelectedCircuit] = useState<CircuitOption | null>(
     visibleCircuits[0] || null
@@ -144,7 +161,6 @@ export default function ChecklistPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-xl mx-auto space-y-4">
-        {/* ---------- Sélecteur de circuit (uniquement si plusieurs visibles) ---------- */}
         {visibleCircuits.length > 1 && (
           <div>
             <label className="block text-xs text-slate-400 mb-1">Circuit</label>
