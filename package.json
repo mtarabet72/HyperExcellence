@@ -10,7 +10,8 @@
     "provision": "node scripts/appwrite-setup.mjs",
     "provision:teams": "node scripts/appwrite-teams.mjs",
     "seed:admin": "node scripts/appwrite-seed-admin.mjs",
-    "seed:circuit1": "node scripts/appwrite-seed-circuit1.mjs"
+    "seed:circuit1": "node scripts/appwrite-seed-circuit1.mjs",
+    "seed:zone1": "node scripts/appwrite-seed-zone1.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
