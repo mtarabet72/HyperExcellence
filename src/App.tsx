@@ -4,9 +4,10 @@ import LoginPage from './pages/LoginPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
+import DashboardPage from './pages/DashboardPage';
 import { ROLE_LABELS, ROLES } from './constants';
 
-type View = 'home' | 'employees' | 'checklist' | 'nonconformites';
+type View = 'home' | 'employees' | 'checklist' | 'nonconformites' | 'dashboard';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -40,6 +41,7 @@ function App() {
         {view === 'employees' && <AdminEmployeesPage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
+        {view === 'dashboard' && <DashboardPage />}
       </div>
     );
   }
@@ -54,6 +56,15 @@ function App() {
         <p className="text-slate-400 text-sm">{ROLE_LABELS[profile.role]}</p>
 
         <div className="space-y-2">
+          {isAdmin && (
+            <button
+              onClick={() => setView('dashboard')}
+              className="rounded-lg bg-blue-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Tableau de bord
+            </button>
+          )}
+
           <button
             onClick={() => setView('checklist')}
             className="rounded-lg bg-amber-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
