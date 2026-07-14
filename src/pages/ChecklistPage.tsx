@@ -33,6 +33,13 @@ const CIRCUITS: CircuitOption[] = [
     transversal: true,
   },
   {
+    checklistId: 'circuit-2-boucherie',
+    zoneId: '6a56b03900331e1574ac',
+    departmentId: 'boucherie',
+    title: 'Circuit 2 — Service SBAM Boucherie',
+    subtitle: 'Rayon Boucherie / Volaille',
+  },
+  {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
