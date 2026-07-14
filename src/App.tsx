@@ -58,7 +58,7 @@ function App() {
             onClick={() => setView('checklist')}
             className="rounded-lg bg-amber-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
           >
-            Circuit 1 — Confort
+            Checklists
           </button>
 
           <button
