@@ -22,7 +22,8 @@
     "seed:zone-boucherie": "node scripts/appwrite-seed-zone-boucherie.mjs",
     "seed:circuit2-fromage": "node scripts/appwrite-seed-circuit2-fromage.mjs",
     "seed:zone-fromage": "node scripts/appwrite-seed-zone-fromage.mjs",
-    "seed:circuit2-boulangerie": "node scripts/appwrite-seed-circuit2-boulangerie.mjs"
+    "seed:circuit2-boulangerie": "node scripts/appwrite-seed-circuit2-boulangerie.mjs",
+    "seed:zone-boulangerie": "node scripts/appwrite-seed-zone-boulangerie.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
