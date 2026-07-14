@@ -1,8 +1,8 @@
 // ============================================================
 // HyperExcellence - Seed du premier compte ADMIN de test
-// À exécuter UNE FOIS via GitHub Actions
+// Idempotent : peut être relancé sans erreur si déjà exécuté.
 // ============================================================
-import { Client, Users, Databases, ID } from 'node-appwrite';
+import { Client, Users, Databases, Query, ID } from 'node-appwrite';
 
 const client = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT)
@@ -14,29 +14,44 @@ const databases = new Databases(client);
 
 const DB_ID = 'hyperclean_pro';
 
-// ---------- Identifiants du compte de test ----------
 const BADGE_NUMBER = 'ADMIN01';
 const PIN = '123456';
 const FULL_NAME = 'Mohamed - Admin QHSE';
 const EMAIL = `${BADGE_NUMBER.toLowerCase()}@hyperexcellence.local`;
 
 // ⚠️ DOIT rester strictement identique à deriveAppwritePassword()
-// dans src/lib/auth.ts, sinon la connexion échouera.
+// dans src/lib/auth.ts
 function deriveAppwritePassword(pin) {
   const cleanPin = pin.trim().padStart(4, '0');
   return `HXC-${cleanPin}-SEC`;
 }
 
-async function run() {
+async function getOrCreateAuthUser() {
   const password = deriveAppwritePassword(PIN);
 
-  console.log('Création du compte Auth...');
+  // Cherche si un compte avec cet email existe déjà
+  const existing = await users.list([Query.equal('email', EMAIL)]);
+  if (existing.total > 0) {
+    console.log('ℹ️ Compte Auth déjà existant, réutilisation:', existing.users[0].$id);
+    return existing.users[0];
+  }
+
   const user = await users.create(ID.unique(), EMAIL, undefined, password, FULL_NAME);
   console.log('✅ Compte Auth créé:', user.$id);
+  return user;
+}
 
-  console.log('Création du profil...');
-  await databases.createDocument(DB_ID, 'profiles', ID.unique(), {
-    user_id: user.$id,
+async function getOrCreateProfile(userId) {
+  const existing = await databases.listDocuments(DB_ID, 'profiles', [
+    Query.equal('user_id', userId),
+  ]);
+  if (existing.total > 0) {
+    console.log('ℹ️ Profil déjà existant, rien à faire.');
+    return existing.documents[0];
+  }
+
+  const profile = await databases.createDocument(DB_ID, 'profiles', ID.unique(), {
+    user_id: userId,
     full_name: FULL_NAME,
     role: 'ADMIN',
     department_id: null,
@@ -45,6 +60,15 @@ async function run() {
     is_active: true,
   });
   console.log('✅ Profil ADMIN créé et lié.');
+  return profile;
+}
+
+async function run() {
+  console.log('Vérification du compte Auth...');
+  const user = await getOrCreateAuthUser();
+
+  console.log('Vérification du profil...');
+  await getOrCreateProfile(user.$id);
 
   console.log('');
   console.log('=== IDENTIFIANTS DE CONNEXION (à saisir dans l\'app) ===');
