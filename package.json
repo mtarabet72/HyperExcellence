@@ -16,7 +16,8 @@
     "seed:zone-caisses": "node scripts/appwrite-seed-zone-caisses.mjs",
     "seed:circuit4": "node scripts/appwrite-seed-circuit4.mjs",
     "seed:zone-apls": "node scripts/appwrite-seed-zone-apls.mjs",
-    "seed:circuit3": "node scripts/appwrite-seed-circuit3.mjs"
+    "seed:circuit3": "node scripts/appwrite-seed-circuit3.mjs",
+    "seed:zone-pnd": "node scripts/appwrite-seed-zone-pnd.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
