@@ -22,6 +22,12 @@ const CIRCUITS: CircuitOption[] = [
     subtitle: 'Parking & Entrée principale',
   },
   {
+    checklistId: 'circuit-4-libre-service',
+    zoneId: '6a569fc40029a16ed2b6',
+    title: 'Circuit 4 — Libre Service & Ruptures',
+    subtitle: 'Libre Service Frais',
+  },
+  {
     checklistId: 'circuit-5-caisses',
     zoneId: '6a565b970008bdf42a6b',
     title: 'Circuit 5 — Caisses',
