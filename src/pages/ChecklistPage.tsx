@@ -1,15 +1,16 @@
 // ============================================================
-// HyperExcellence - Écran Checklist (multi-circuits)
+// HyperExcellence - Écran Checklist (multi-circuits, filtré par rayon)
 // ============================================================
 import { useEffect, useState } from 'react';
 import { getTasksForChecklist, submitTaskExecution, TaskTemplate } from '../lib/tasks';
 import { createNonConformite } from '../lib/nonConformites';
-import { TASK_STATUS_LABELS, TaskStatus, GRAVITE_COLORS } from '../constants';
+import { TASK_STATUS_LABELS, TaskStatus, GRAVITE_COLORS, ROLES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 
 interface CircuitOption {
   checklistId: string;
   zoneId: string;
+  departmentId: string;
   title: string;
   subtitle: string;
 }
@@ -18,26 +19,40 @@ const CIRCUITS: CircuitOption[] = [
   {
     checklistId: 'circuit-1-confort',
     zoneId: '6a561bea002454e03375',
+    departmentId: 'confort_environnement',
     title: 'Circuit 1 — Confort & Environnement',
     subtitle: 'Parking & Entrée principale',
   },
   {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
+    departmentId: 'apls_frais_ls',
     title: 'Circuit 4 — Libre Service & Ruptures',
     subtitle: 'Libre Service Frais',
   },
   {
     checklistId: 'circuit-5-caisses',
     zoneId: '6a565b970008bdf42a6b',
+    departmentId: 'caisses',
     title: 'Circuit 5 — Caisses',
     subtitle: 'Ligne de caisses principale',
   },
 ];
 
+// Rôles transversaux : accès à tous les circuits, quel que soit leur rayon
+const ROLES_TRANSVERSAUX: string[] = [ROLES.ADMIN, ROLES.CHEF_SECTEUR];
+
 export default function ChecklistPage() {
   const { profile } = useAuth();
-  const [selectedCircuit, setSelectedCircuit] = useState<CircuitOption>(CIRCUITS[0]);
+
+  const visibleCircuits =
+    profile && ROLES_TRANSVERSAUX.includes(profile.role)
+      ? CIRCUITS
+      : CIRCUITS.filter((c) => c.departmentId === profile?.department_id);
+
+  const [selectedCircuit, setSelectedCircuit] = useState<CircuitOption | null>(
+    visibleCircuits[0] || null
+  );
   const [tasks, setTasks] = useState<TaskTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [completed, setCompleted] = useState<Record<string, TaskStatus>>({});
@@ -48,6 +63,10 @@ export default function ChecklistPage() {
   const [actionImmediate, setActionImmediate] = useState('');
 
   useEffect(() => {
+    if (!selectedCircuit) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setCompleted({});
     getTasksForChecklist(selectedCircuit.checklistId).then((list) => {
@@ -67,7 +86,7 @@ export default function ChecklistPage() {
   }
 
   async function saveExecution(task: TaskTemplate, status: TaskStatus) {
-    if (!profile) return;
+    if (!profile || !selectedCircuit) return;
     setSavingTaskId(task.$id);
     try {
       const execution = await submitTaskExecution({
@@ -108,41 +127,59 @@ export default function ChecklistPage() {
 
   const doneCount = Object.keys(completed).length;
 
+  if (visibleCircuits.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
+        <div className="max-w-xl mx-auto text-center mt-10">
+          <p className="text-slate-400 text-sm">
+            Aucun circuit n'est associé à votre rayon pour le moment.
+            <br />
+            Contactez votre administrateur.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-xl mx-auto space-y-4">
-        {/* ---------- Sélecteur de circuit ---------- */}
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Circuit</label>
-          <select
-            value={selectedCircuit.checklistId}
-            onChange={(e) =>
-              setSelectedCircuit(
-                CIRCUITS.find((c) => c.checklistId === e.target.value)!
-              )
-            }
-            className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
-          >
-            {CIRCUITS.map((c) => (
-              <option key={c.checklistId} value={c.checklistId}>
-                {c.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <h1 className="text-xl font-bold">{selectedCircuit.title}</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            {selectedCircuit.subtitle} · {doneCount}/{tasks.length} tâches
-          </p>
-          <div className="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
-            <div
-              className="h-full bg-amber-500 transition-all"
-              style={{ width: tasks.length ? `${(doneCount / tasks.length) * 100}%` : '0%' }}
-            />
+        {/* ---------- Sélecteur de circuit (uniquement si plusieurs visibles) ---------- */}
+        {visibleCircuits.length > 1 && (
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Circuit</label>
+            <select
+              value={selectedCircuit?.checklistId}
+              onChange={(e) =>
+                setSelectedCircuit(
+                  visibleCircuits.find((c) => c.checklistId === e.target.value)!
+                )
+              }
+              className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
+            >
+              {visibleCircuits.map((c) => (
+                <option key={c.checklistId} value={c.checklistId}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+        )}
+
+        {selectedCircuit && (
+          <div>
+            <h1 className="text-xl font-bold">{selectedCircuit.title}</h1>
+            <p className="text-sm text-slate-400 mt-1">
+              {selectedCircuit.subtitle} · {doneCount}/{tasks.length} tâches
+            </p>
+            <div className="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all"
+                style={{ width: tasks.length ? `${(doneCount / tasks.length) * 100}%` : '0%' }}
+              />
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <p className="text-slate-400 text-sm">Chargement des tâches...</p>
