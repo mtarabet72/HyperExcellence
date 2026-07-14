@@ -135,3 +135,22 @@ export const COLLECTIONS = {
   CAPA: 'capa',
   AUDIT_LOG: 'audit_log',
 } as const;
+// ---------- DÉPARTEMENTS / RAYONS (correspond aux Teams Appwrite) ----------
+export const DEPARTMENTS = [
+  { id: 'boucherie', name: 'Boucherie / Volaille à la coupe', secteur: 'FRAIS' },
+  { id: 'poissonnerie', name: 'Poissonnerie', secteur: 'FRAIS' },
+  { id: 'traiteur', name: 'Traiteur', secteur: 'FRAIS' },
+  { id: 'fromage_charcuterie', name: 'Fromage / Charcuterie à la coupe', secteur: 'FRAIS' },
+  { id: 'boulangerie', name: 'Boulangerie / Pâtisserie', secteur: 'FRAIS' },
+  { id: 'fruits_legumes', name: 'Fruits et Légumes', secteur: 'FRAIS' },
+  { id: 'epices_vrac', name: 'Épices / Olives / Vrac', secteur: 'FRAIS' },
+  { id: 'electromenager', name: 'Electroménager', secteur: 'PGC' },
+  { id: 'textile_pgc', name: 'Textile / Literie / PGC', secteur: 'PGC' },
+  { id: 'apls_frais_ls', name: 'Libre Service Frais (APLS)', secteur: 'PGC' },
+  { id: 'rayon_pgc_ruptures', name: 'Rayon PGC - Produits Imposés', secteur: 'PGC' },
+  { id: 'confort_environnement', name: 'Confort & Environnement', secteur: 'SUPPORT' },
+  { id: 'securite', name: 'Sécurité', secteur: 'SUPPORT' },
+  { id: 'caisses', name: 'Caisses', secteur: 'SUPPORT' },
+] as const;
+
+
