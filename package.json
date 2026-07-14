@@ -12,7 +12,8 @@
     "seed:admin": "node scripts/appwrite-seed-admin.mjs",
     "seed:circuit1": "node scripts/appwrite-seed-circuit1.mjs",
     "seed:zone1": "node scripts/appwrite-seed-zone1.mjs",
-    "seed:circuit5": "node scripts/appwrite-seed-circuit5.mjs"
+    "seed:circuit5": "node scripts/appwrite-seed-circuit5.mjs",
+    "seed:zone-caisses": "node scripts/appwrite-seed-zone-caisses.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
