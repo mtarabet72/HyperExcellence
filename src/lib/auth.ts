@@ -17,12 +17,24 @@ function badgeToEmail(badgeNumber: string): string {
 }
 
 /**
+ * Transforme un PIN court (4-6 chiffres) en mot de passe Appwrite valide
+ * (minimum 8 caractères). Doit être STRICTEMENT identique à la fonction
+ * utilisée dans scripts/appwrite-seed-admin.mjs et tout futur script de
+ * création d'employé, sinon la connexion échouera.
+ */
+function deriveAppwritePassword(pin: string): string {
+  const cleanPin = pin.trim().padStart(4, '0');
+  return `HXC-${cleanPin}-SEC`;
+}
+
+/**
  * Connexion via badge + PIN.
  * Lève une erreur si badge/PIN incorrect (à afficher à l'écran).
  */
 export async function loginWithBadge(badgeNumber: string, pin: string) {
   const email = badgeToEmail(badgeNumber);
-  return account.createEmailPasswordSession(email, pin);
+  const password = deriveAppwritePassword(pin);
+  return account.createEmailPasswordSession(email, password);
 }
 
 /**
@@ -54,5 +66,6 @@ export async function createEmployeeAccount(
   fullName: string
 ) {
   const email = badgeToEmail(badgeNumber);
-  return account.create(ID.unique(), email, pin, fullName);
+  const password = deriveAppwritePassword(pin);
+  return account.create(ID.unique(), email, password, fullName);
 }
