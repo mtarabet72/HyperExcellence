@@ -54,6 +54,13 @@ const CIRCUITS: CircuitOption[] = [
     subtitle: 'Rayon Boulangerie / Pâtisserie',
   },
   {
+    checklistId: 'circuit-2-poissonnerie',
+    zoneId: '6a56be96001436a1c2ee',
+    departmentId: 'poissonnerie',
+    title: 'Circuit 2 — Service SBAM Poissonnerie',
+    subtitle: 'Rayon Poissonnerie',
+  },
+  {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
