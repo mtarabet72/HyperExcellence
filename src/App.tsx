@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
+import ChecklistPage from './pages/ChecklistPage';
 import { ROLE_LABELS, ROLES } from './constants';
+
+type View = 'home' | 'employees' | 'checklist';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
-  const [showEmployees, setShowEmployees] = useState(false);
+  const [view, setView] = useState<View>('home');
 
   if (isLoading) {
     return (
@@ -22,21 +25,19 @@ function App() {
 
   const isAdmin = profile.role === ROLES.ADMIN;
 
-  if (isAdmin && showEmployees) {
+  if (view !== 'home') {
     return (
       <div>
         <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => setShowEmployees(false)}
-            className="text-sm text-slate-400"
-          >
+          <button onClick={() => setView('home')} className="text-sm text-slate-400">
             ← Retour
           </button>
           <button onClick={() => logout()} className="text-sm text-slate-400">
             Déconnexion
           </button>
         </div>
-        <AdminEmployeesPage />
+        {view === 'employees' && <AdminEmployeesPage />}
+        {view === 'checklist' && <ChecklistPage />}
       </div>
     );
   }
@@ -50,14 +51,23 @@ function App() {
         </p>
         <p className="text-slate-400 text-sm">{ROLE_LABELS[profile.role]}</p>
 
-        {isAdmin && (
+        <div className="space-y-2">
           <button
-            onClick={() => setShowEmployees(true)}
-            className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto"
+            onClick={() => setView('checklist')}
+            className="rounded-lg bg-amber-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
           >
-            Gérer les employés
+            Circuit 1 — Confort
           </button>
-        )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('employees')}
+              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Gérer les employés
+            </button>
+          )}
+        </div>
 
         <button
           onClick={() => logout()}
