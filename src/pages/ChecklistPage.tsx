@@ -40,6 +40,13 @@ const CIRCUITS: CircuitOption[] = [
     subtitle: 'Rayon Boucherie / Volaille',
   },
   {
+    checklistId: 'circuit-2-fromage-charcuterie',
+    zoneId: '6a56b4120021076ed72b',
+    departmentId: 'fromage_charcuterie',
+    title: 'Circuit 2 — Service SBAM Fromage/Charcuterie',
+    subtitle: 'Rayon Fromage / Charcuterie à la coupe',
+  },
+  {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
