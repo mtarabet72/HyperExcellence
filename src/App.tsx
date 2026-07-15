@@ -6,9 +6,10 @@ import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
 import ExcelExportPage from './pages/ExcelExportPage';
+import HeatmapPage from './pages/HeatmapPage';
 import { ROLE_LABELS, ROLES } from './constants';
 
-type View = 'home' | 'employees' | 'checklist' | 'nonconformites' | 'dashboard' | 'excel';
+type View = 'home' | 'employees' | 'checklist' | 'nonconformites' | 'dashboard' | 'excel' | 'heatmap';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -27,6 +28,7 @@ function App() {
   }
 
   const isAdmin = profile.role === ROLES.ADMIN;
+  const canSeeHeatmap = profile.role === ROLES.ADMIN || profile.role === ROLES.CHEF_SECTEUR;
 
   if (view !== 'home') {
     return (
@@ -44,6 +46,7 @@ function App() {
         {view === 'nonconformites' && <NonConformitesPage />}
         {view === 'dashboard' && <DashboardPage />}
         {view === 'excel' && <ExcelExportPage />}
+        {view === 'heatmap' && <HeatmapPage />}
       </div>
     );
   }
@@ -64,6 +67,15 @@ function App() {
               className="rounded-lg bg-blue-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
             >
               Tableau de bord
+            </button>
+          )}
+
+          {canSeeHeatmap && (
+            <button
+              onClick={() => setView('heatmap')}
+              className="rounded-lg bg-purple-500/20 text-purple-300 border border-purple-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Heatmap Magasin
             </button>
           )}
 
