@@ -4,7 +4,7 @@
 import Dexie, { Table } from 'dexie';
 
 export interface PendingExecution {
-  offlineId: string; // clé unique générée localement, évite les doublons au sync
+  offlineId: string;
   zoneId: string;
   taskId: string;
   executedBy: string;
@@ -12,38 +12,42 @@ export interface PendingExecution {
   comment?: string | null;
   photoAfterUrl?: string | null;
   executedAt: string;
-  createdLocallyAt: number; // timestamp local, pour trier la file d'attente
+  createdLocallyAt: number;
 }
 
 export interface PendingNC {
   offlineId: string;
   zoneId: string;
-  taskExecutionOfflineId: string; // référence l'exécution en attente correspondante
+  taskExecutionOfflineId: string;
   gravite: string;
   actionImmediate: string;
   declaredBy: string;
   createdLocallyAt: number;
 }
 
+export interface CachedTaskList {
+  checklistId: string; // clé
+  tasksJson: string; // liste des TaskTemplate sérialisée
+  cachedAt: number;
+}
+
 class OfflineDatabase extends Dexie {
   pendingExecutions!: Table<PendingExecution, string>;
   pendingNCs!: Table<PendingNC, string>;
+  cachedTasks!: Table<CachedTaskList, string>;
 
   constructor() {
     super('hyperexcellence-offline');
-    this.version(1).stores({
+    this.version(2).stores({
       pendingExecutions: 'offlineId, createdLocallyAt',
       pendingNCs: 'offlineId, createdLocallyAt',
+      cachedTasks: 'checklistId, cachedAt',
     });
   }
 }
 
 export const offlineDb = new OfflineDatabase();
 
-/**
- * Génère un identifiant local unique (utilisé comme offline_id côté Appwrite
- * pour la déduplication lors de la synchronisation).
- */
 export function generateOfflineId(): string {
   return `offline-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
