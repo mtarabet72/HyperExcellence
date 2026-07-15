@@ -1,0 +1,26 @@
+name: Translate Circuit 4
+
+on:
+  workflow_dispatch:
+
+jobs:
+  translate-circuit4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installation des dependances
+        run: npm install
+
+      - name: Traduction du Circuit 4
+        run: npm run translate:circuit4
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
