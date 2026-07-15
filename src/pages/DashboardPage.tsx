@@ -1,5 +1,6 @@
 // ============================================================
 // HyperExcellence - Tableau de bord KPI Admin (Circuit 10)
+// Consultation de l'historique via sélecteur de date.
 // ============================================================
 import { useEffect, useState } from 'react';
 import { Query } from 'appwrite';
@@ -20,7 +21,12 @@ interface OverdueCapaItem extends Capa {
   ncActionImmediate: string;
 }
 
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function DashboardPage() {
+  const [selectedDate, setSelectedDate] = useState(todayISO());
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
@@ -28,10 +34,12 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
+  const isToday = selectedDate === todayISO();
+
   async function load() {
     setIsLoading(true);
     const [dashboardStats, zonesResult, profilesResult, overdue] = await Promise.all([
-      getDashboardStats(),
+      getDashboardStats(selectedDate),
       databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
       databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
       listOverdueCapas(),
@@ -56,12 +64,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   async function handleExportPDF() {
     setIsExporting(true);
     try {
-      await generateDailyAuditPDF();
+      await generateDailyAuditPDF(selectedDate);
     } catch {
       alert('Erreur lors de la génération du PDF.');
     } finally {
@@ -94,15 +103,41 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {/* ---------- Sélecteur de date ---------- */}
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+          <label className="block text-xs text-slate-400 mb-1">
+            Consulter la journée du
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={selectedDate}
+              max={todayISO()}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="flex-1 rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+            />
+            {!isToday && (
+              <button
+                onClick={() => setSelectedDate(todayISO())}
+                className="text-xs text-amber-400 whitespace-nowrap"
+              >
+                Revenir à aujourd'hui
+              </button>
+            )}
+          </div>
+        </div>
+
         <button
           onClick={handleExportPDF}
           disabled={isExporting}
           className="w-full rounded-lg bg-blue-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
         >
-          {isExporting ? 'Génération du PDF...' : 'Exporter l\'audit du jour (PDF)'}
+          {isExporting
+            ? 'Génération du PDF...'
+            : `Exporter l'audit du ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')} (PDF)`}
         </button>
 
-        {overdueCapas.length > 0 && (
+        {isToday && overdueCapas.length > 0 && (
           <div className="bg-red-950/40 border border-red-800 rounded-lg p-3 space-y-2">
             <p className="text-sm font-semibold text-red-300">
               {overdueCapas.length} CAPA en retard — escalade requise
@@ -135,7 +170,9 @@ export default function DashboardPage() {
         )}
 
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-          <p className="text-xs text-slate-400 mb-2">Taux de conformité global — Aujourd'hui</p>
+          <p className="text-xs text-slate-400 mb-2">
+            Taux de conformité — {isToday ? "Aujourd'hui" : new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')}
+          </p>
           <div className="flex items-end gap-2">
             <span className="text-4xl font-bold" style={{ color: conformiteColor }}>
               {stats.tauxConformite}%
@@ -172,7 +209,7 @@ export default function DashboardPage() {
         {stats.scoresSBAM.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-slate-300 mb-2">
-              Classement SBAM du jour
+              Classement SBAM {isToday ? 'du jour' : 'de la journée'}
             </h2>
             <div className="space-y-2">
               {stats.scoresSBAM.map((v, i) => (
@@ -246,24 +283,26 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div>
-          <h2 className="text-sm font-semibold text-slate-300 mb-2">
-            Non Conformités ouvertes
-          </h2>
-          <div className="grid grid-cols-3 gap-3">
-            {(['CRITIQUE', 'MAJEURE', 'MINEURE'] as const).map((g) => (
-              <div
-                key={g}
-                className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center"
-              >
-                <p className="text-2xl font-bold" style={{ color: GRAVITE_COLORS[g] }}>
-                  {stats.ncOuvertesParGravite[g]}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">{GRAVITE_LABELS[g]}</p>
-              </div>
-            ))}
+        {isToday && (
+          <div>
+            <h2 className="text-sm font-semibold text-slate-300 mb-2">
+              Non Conformités ouvertes
+            </h2>
+            <div className="grid grid-cols-3 gap-3">
+              {(['CRITIQUE', 'MAJEURE', 'MINEURE'] as const).map((g) => (
+                <div
+                  key={g}
+                  className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center"
+                >
+                  <p className="text-2xl font-bold" style={{ color: GRAVITE_COLORS[g] }}>
+                    {stats.ncOuvertesParGravite[g]}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">{GRAVITE_LABELS[g]}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div>
           <h2 className="text-sm font-semibold text-slate-300 mb-2">
