@@ -1,7 +1,5 @@
 // ============================================================
 // HyperExcellence - Export PDF d'audit journalier (Circuit 7)
-// Dédoublonne, regroupe par Pilier, inclut les photos preuves.
-// Accepte une date cible pour consulter l'historique.
 // ============================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -15,20 +13,20 @@ import {
   PILIER_LABELS_BY_CIRCUIT_NUMBER,
 } from '../constants';
 
-function startOfDay(dateStr) {
+function startOfDay(dateStr?: string): string {
   const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
 }
 
-function endOfDay(dateStr) {
+function endOfDay(dateStr?: string): string {
   const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
   d.setHours(23, 59, 59, 999);
   return d.toISOString();
 }
 
-function dedupeLatestPerTask(executions) {
-  const latest = {};
+function dedupeLatestPerTask(executions: any[]): any[] {
+  const latest: any = {};
   for (const e of executions) {
     const key = e.task_id + '|' + e.zone_id;
     if (!latest[key] || new Date(e.executed_at) > new Date(latest[key].executed_at)) {
@@ -38,14 +36,14 @@ function dedupeLatestPerTask(executions) {
   return Object.values(latest);
 }
 
-async function fetchImageAsBase64(url) {
+async function fetchImageAsBase64(url: string): Promise<string | null> {
   try {
     const response = await fetch(url, { credentials: 'include' });
     if (!response.ok) return null;
     const blob = await response.blob();
     return await new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
+      reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
@@ -54,7 +52,7 @@ async function fetchImageAsBase64(url) {
   }
 }
 
-export async function generateDailyAuditPDF(dateStr) {
+export async function generateDailyAuditPDF(dateStr?: string) {
   const rangeStart = startOfDay(dateStr);
   const rangeEnd = endOfDay(dateStr);
 
@@ -75,49 +73,49 @@ export async function generateDailyAuditPDF(dateStr) {
     databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
   ]);
 
-  const executionsResult = results[0];
-  const ncResult = results[1];
-  const tasksResult = results[2];
-  const checklistsResult = results[3];
-  const zonesResult = results[4];
-  const profilesResult = results[5];
+  const executionsResult: any = results[0];
+  const ncResult: any = results[1];
+  const tasksResult: any = results[2];
+  const checklistsResult: any = results[3];
+  const zonesResult: any = results[4];
+  const profilesResult: any = results[5];
 
-  const taskLabels = {};
-  const taskToChecklist = {};
-  for (const t of tasksResult.documents) {
+  const taskLabels: any = {};
+  const taskToChecklist: any = {};
+  for (const t of tasksResult.documents as any[]) {
     taskLabels[t.$id] = t.task_number + '. ' + t.label;
     taskToChecklist[t.$id] = t.checklist_id;
   }
-  const checklistPilier = {};
-  for (const c of checklistsResult.documents) {
+  const checklistPilier: any = {};
+  for (const c of checklistsResult.documents as any[]) {
     checklistPilier[c.$id] = c.circuit_number;
   }
-  const zoneNames = {};
-  for (const z of zonesResult.documents) {
+  const zoneNames: any = {};
+  for (const z of zonesResult.documents as any[]) {
     zoneNames[z.$id] = z.name;
   }
-  const profileNames = {};
-  for (const p of profilesResult.documents) {
+  const profileNames: any = {};
+  for (const p of profilesResult.documents as any[]) {
     profileNames[p.$id] = p.full_name;
   }
 
   const executions = dedupeLatestPerTask(executionsResult.documents);
   const total = executions.length;
-  const faitCount = executions.filter(function (e) { return e.status === 'FAIT'; }).length;
+  const faitCount = executions.filter((e: any) => e.status === 'FAIT').length;
   const tauxConformite = total > 0 ? Math.round((faitCount / total) * 100) : 0;
 
-  const byPilier = {};
-  for (const e of executions) {
+  const byPilier: any = {};
+  for (const e of executions as any[]) {
     const checklistId = taskToChecklist[e.task_id];
     const pilierNum = checklistPilier[checklistId] || 0;
     if (!byPilier[pilierNum]) byPilier[pilierNum] = [];
     byPilier[pilierNum].push(e);
   }
 
-  const executionsWithPhoto = executions.filter(function (e) { return e.photo_after; });
-  const photoCache = {};
+  const executionsWithPhoto = (executions as any[]).filter((e: any) => e.photo_after);
+  const photoCache: any = {};
   await Promise.all(
-    executionsWithPhoto.map(async function (e) {
+    executionsWithPhoto.map(async (e: any) => {
       photoCache[e.$id] = await fetchImageAsBase64(e.photo_after);
     })
   );
@@ -148,7 +146,7 @@ export async function generateDailyAuditPDF(dateStr) {
 
   const pilierNumbers = Object.keys(byPilier)
     .map(Number)
-    .sort(function (a, b) { return a - b; });
+    .sort((a: number, b: number) => a - b);
 
   if (pilierNumbers.length === 0) {
     doc.setFontSize(11);
@@ -159,7 +157,7 @@ export async function generateDailyAuditPDF(dateStr) {
   for (const pilierNum of pilierNumbers) {
     const items = byPilier[pilierNum];
     const pilierTitle = PILIER_LABELS_BY_CIRCUIT_NUMBER[pilierNum] || ('Circuit ' + pilierNum);
-    const pilierFait = items.filter(function (e) { return e.status === 'FAIT'; }).length;
+    const pilierFait = items.filter((e: any) => e.status === 'FAIT').length;
     const pilierTaux = items.length > 0 ? Math.round((pilierFait / items.length) * 100) : 0;
 
     if (currentY > 250) {
@@ -172,16 +170,14 @@ export async function generateDailyAuditPDF(dateStr) {
     doc.text(pilierTitle + ' - ' + pilierTaux + '% (' + pilierFait + '/' + items.length + ')', 14, currentY);
     currentY += 6;
 
-    const rows = items.map(function (e) {
-      return [
-        taskLabels[e.task_id] || e.task_id,
-        zoneNames[e.zone_id] || e.zone_id,
-        profileNames[e.executed_by] || e.executed_by,
-        TASK_STATUS_LABELS[e.status] || e.status,
-        new Date(e.executed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        e.photo_after ? 'Oui' : '-',
-      ];
-    });
+    const rows = items.map((e: any) => [
+      taskLabels[e.task_id] || e.task_id,
+      zoneNames[e.zone_id] || e.zone_id,
+      profileNames[e.executed_by] || e.executed_by,
+      TASK_STATUS_LABELS[e.status as keyof typeof TASK_STATUS_LABELS] || e.status,
+      new Date(e.executed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      e.photo_after ? 'Oui' : '-',
+    ]);
 
     autoTable(doc, {
       startY: currentY,
@@ -192,10 +188,10 @@ export async function generateDailyAuditPDF(dateStr) {
       columnStyles: { 0: { cellWidth: 60 } },
     });
 
-    currentY = doc.lastAutoTable.finalY + 12;
+    currentY = (doc as any).lastAutoTable.finalY + 12;
   }
 
-  const validPhotos = executionsWithPhoto.filter(function (e) { return photoCache[e.$id]; });
+  const validPhotos = executionsWithPhoto.filter((e: any) => photoCache[e.$id]);
   if (validPhotos.length > 0) {
     doc.addPage();
     doc.setFontSize(14);
@@ -207,7 +203,7 @@ export async function generateDailyAuditPDF(dateStr) {
     const imgSize = 55;
     const gap = 8;
 
-    for (const e of validPhotos) {
+    for (const e of validPhotos as any[]) {
       const base64 = photoCache[e.$id];
       if (!base64) continue;
 
@@ -223,7 +219,7 @@ export async function generateDailyAuditPDF(dateStr) {
 
       try {
         doc.addImage(base64, 'JPEG', px, py, imgSize, imgSize);
-      } catch (err) {
+      } catch {
         // format non supporte
       }
 
@@ -251,14 +247,12 @@ export async function generateDailyAuditPDF(dateStr) {
     doc.setTextColor(80, 80, 80);
     doc.text('Aucune non conformite declaree a cette date.', 14, ncY);
   } else {
-    const ncRows = nc.map(function (n) {
-      return [
-        zoneNames[n.zone_id] || n.zone_id,
-        GRAVITE_LABELS[n.gravite] || n.gravite,
-        n.action_immediate,
-        n.status,
-      ];
-    });
+    const ncRows = (nc as any[]).map((n: any) => [
+      zoneNames[n.zone_id] || n.zone_id,
+      GRAVITE_LABELS[n.gravite as keyof typeof GRAVITE_LABELS] || n.gravite,
+      n.action_immediate,
+      n.status,
+    ]);
 
     autoTable(doc, {
       startY: ncY,
