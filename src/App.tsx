@@ -7,9 +7,18 @@ import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
 import ExcelExportPage from './pages/ExcelExportPage';
 import HeatmapPage from './pages/HeatmapPage';
+import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import { ROLE_LABELS, ROLES } from './constants';
 
-type View = 'home' | 'employees' | 'checklist' | 'nonconformites' | 'dashboard' | 'excel' | 'heatmap';
+type View =
+  | 'home'
+  | 'employees'
+  | 'checklist'
+  | 'nonconformites'
+  | 'dashboard'
+  | 'excel'
+  | 'heatmap'
+  | 'photos';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -47,6 +56,7 @@ function App() {
         {view === 'dashboard' && <DashboardPage />}
         {view === 'excel' && <ExcelExportPage />}
         {view === 'heatmap' && <HeatmapPage />}
+        {view === 'photos' && <PhotosGalleryPage />}
       </div>
     );
   }
@@ -76,6 +86,15 @@ function App() {
               className="rounded-lg bg-purple-500/20 text-purple-300 border border-purple-900 px-4 py-2 text-sm block mx-auto w-56"
             >
               Heatmap Magasin
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('photos')}
+              className="rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Photos du jour
             </button>
           )}
 
