@@ -123,12 +123,11 @@ export default function NonConformitesPage() {
   function minRoleLabelFor(gravite: NonConformite['gravite']) {
     const map: Record<string, string> = {
       MINEURE: ROLE_LABELS.CHEF_RAYON,
-      MAJEURE: ROLE_LABELS.CHEF_SECTEUR,
+      MAJEURE: ROLE_LABELS.CHEF_DEPARTEMENT,
       CRITIQUE: ROLE_LABELS.ADMIN,
     };
     return map[gravite] || '—';
   }
-
   if (!profile) return null;
 
   return (
