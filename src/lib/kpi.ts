@@ -1,14 +1,21 @@
 // ============================================================
 // HyperExcellence - Calcul des KPI (Circuit 10)
 // Dédoublonne : ne garde que la dernière exécution par tâche/jour.
+// Accepte une date cible (par défaut aujourd'hui) pour consulter l'historique.
 // ============================================================
 import { Query } from 'appwrite';
 import { databases } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, Gravite } from '../constants';
 
-function startOfToday(): string {
-  const d = new Date();
+function startOfDay(dateStr?: string): string {
+  const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
   d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function endOfDay(dateStr?: string): string {
+  const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  d.setHours(23, 59, 59, 999);
   return d.toISOString();
 }
 
@@ -41,7 +48,7 @@ export interface VendeurScore {
   profileId: string;
   total: number;
   fait: number;
-  score: number; // 0-100
+  score: number;
 }
 
 export interface DashboardStats {
@@ -58,12 +65,22 @@ export interface DashboardStats {
   tauxRuptureAPLS: number | null;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  // ---------- Exécutions du jour (dédoublonnées) ----------
+/**
+ * Calcule les KPI pour une date donnée (par défaut : aujourd'hui).
+ * dateStr au format 'yyyy-mm-dd'.
+ */
+export async function getDashboardStats(dateStr?: string): Promise<DashboardStats> {
+  const rangeStart = startOfDay(dateStr);
+  const rangeEnd = endOfDay(dateStr);
+
   const executionsResult = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
     COLLECTIONS.TASK_EXECUTIONS,
-    [Query.greaterThanEqual('executed_at', startOfToday()), Query.limit(1000)]
+    [
+      Query.greaterThanEqual('executed_at', rangeStart),
+      Query.lessThanEqual('executed_at', rangeEnd),
+      Query.limit(1000),
+    ]
   );
   const executions = dedupeLatestPerTask(executionsResult.documents);
 
@@ -74,7 +91,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const tauxConformite =
     totalExecutionsToday > 0 ? Math.round((faitToday / totalExecutionsToday) * 100) : 0;
 
-  // ---------- Tâches (pour checklist_id + task_number) ----------
   const tasksResult = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
     COLLECTIONS.TASK_TEMPLATES,
@@ -87,7 +103,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     taskNumber[t.$id] = t.task_number;
   }
 
-  // ---------- Répartition par circuit ----------
   const byChecklist: Record<string, { total: number; fait: number }> = {};
   for (const e of executions as any[]) {
     const checklistId = taskToChecklist[e.task_id] || 'inconnu';
@@ -102,7 +117,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     tauxConformite: v.total > 0 ? Math.round((v.fait / v.total) * 100) : 0,
   }));
 
-  // ---------- Score SBAM moyen par vendeur (circuits "circuit-2-*" uniquement) ----------
   const byVendeur: Record<string, { total: number; fait: number }> = {};
   for (const e of executions as any[]) {
     const checklistId = taskToChecklist[e.task_id] || '';
@@ -121,7 +135,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     }))
     .sort((a, b) => b.score - a.score);
 
-  // ---------- Taux de rupture APLS (Circuit 4, produits imposés 198-214) ----------
   const ruptureExecutions = executions.filter((e: any) => {
     const n = taskNumber[e.task_id];
     return n !== undefined && n >= 198 && n <= 214;
@@ -130,7 +143,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const tauxRuptureAPLS =
     ruptureExecutions.length > 0 ? Math.round((ruptureCount / 17) * 1000) / 10 : null;
 
-  // ---------- NC ouvertes, par gravité ----------
   const ncOuvertesResult = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
     COLLECTIONS.NON_CONFORMITES,
@@ -147,7 +159,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     ncOuvertesParGravite[nc.gravite as Gravite]++;
   }
 
-  // ---------- Top zones à risque (NC sur 7 jours) ----------
   const nc7joursResult = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
     COLLECTIONS.NON_CONFORMITES,
@@ -162,7 +173,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  // ---------- MTTR : NC clôturées sur 30 jours ----------
   const ncCloturees30jResult = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
     COLLECTIONS.NON_CONFORMITES,
