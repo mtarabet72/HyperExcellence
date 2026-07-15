@@ -17,22 +17,31 @@ import {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
   async function load() {
     setIsLoading(true);
-    const [dashboardStats, zonesResult] = await Promise.all([
+    const [dashboardStats, zonesResult, profilesResult] = await Promise.all([
       getDashboardStats(),
       databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
     ]);
     setStats(dashboardStats);
 
-    const names: Record<string, string> = {};
+    const zNames: Record<string, string> = {};
     for (const zone of zonesResult.documents as any[]) {
-      names[zone.$id] = zone.name;
+      zNames[zone.$id] = zone.name;
     }
-    setZoneNames(names);
+    setZoneNames(zNames);
+
+    const pNames: Record<string, string> = {};
+    for (const p of profilesResult.documents as any[]) {
+      pNames[p.$id] = p.full_name;
+    }
+    setProfileNames(pNames);
+
     setIsLoading(false);
   }
 
@@ -98,13 +107,52 @@ export default function DashboardPage() {
           <div className="w-full h-2 bg-slate-800 rounded-full mt-3 overflow-hidden">
             <div
               className="h-full transition-all"
-              style={{
-                width: `${stats.tauxConformite}%`,
-                backgroundColor: conformiteColor,
-              }}
+              style={{ width: `${stats.tauxConformite}%`, backgroundColor: conformiteColor }}
             />
           </div>
         </div>
+
+        {/* ---------- MTTR + Taux rupture APLS ---------- */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p className="text-xs text-slate-400 mb-1">MTTR NC (30j)</p>
+            <p className="text-xl font-bold text-blue-400">
+              {stats.mttrHeures !== null ? `${stats.mttrHeures}h` : '—'}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">Temps moyen de clôture</p>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+            <p className="text-xs text-slate-400 mb-1">Taux rupture APLS</p>
+            <p className="text-xl font-bold text-orange-400">
+              {stats.tauxRuptureAPLS !== null ? `${stats.tauxRuptureAPLS}%` : '—'}
+            </p>
+            <p className="text-xs text-slate-500 mt-0.5">Objectif &lt;5%</p>
+          </div>
+        </div>
+
+        {/* ---------- Score SBAM par vendeur ---------- */}
+        {stats.scoresSBAM.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-slate-300 mb-2">
+              Classement SBAM du jour
+            </h2>
+            <div className="space-y-2">
+              {stats.scoresSBAM.map((v, i) => (
+                <div
+                  key={v.profileId}
+                  className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"
+                >
+                  <span className="text-sm">
+                    #{i + 1} {profileNames[v.profileId] || v.profileId}
+                  </span>
+                  <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">
+                    {v.score}% ({v.fait}/{v.total})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ---------- Répartition par circuit ---------- */}
         {stats.parCircuit.length > 0 && (
