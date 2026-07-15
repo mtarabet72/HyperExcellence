@@ -19,12 +19,6 @@ export interface TaskTemplate {
   is_active: boolean;
 }
 
-/**
- * Récupère les tâches d'une checklist.
- * - En ligne : lit Appwrite, puis met à jour le cache local pour un usage
- *   hors-ligne futur (préchargement, Circuit 8 point 1).
- * - Hors ligne : lit directement le cache local.
- */
 export async function getTasksForChecklist(checklistId: string): Promise<TaskTemplate[]> {
   if (navigator.onLine) {
     try {
@@ -40,7 +34,6 @@ export async function getTasksForChecklist(checklistId: string): Promise<TaskTem
       );
       const tasks = result.documents as unknown as TaskTemplate[];
 
-      // Mise à jour du cache local pour usage hors-ligne futur
       await offlineDb.cachedTasks.put({
         checklistId,
         tasksJson: JSON.stringify(tasks),
@@ -49,7 +42,7 @@ export async function getTasksForChecklist(checklistId: string): Promise<TaskTem
 
       return tasks;
     } catch {
-      // Requête échouée malgré navigator.onLine=true -> on tente le cache
+      // fallback cache ci-dessous
     }
   }
 
@@ -66,8 +59,8 @@ export interface SubmitTaskExecutionInput {
   executedBy: string;
   status: TaskStatus;
   comment?: string;
-  photoBeforeUrl?: string;
-  photoAfterUrl?: string;
+  photoAfterUrl?: string; // déjà uploadée (mode en ligne)
+  photoBlob?: Blob; // photo brute non uploadée (mode hors-ligne)
 }
 
 export interface SubmitResult {
@@ -81,7 +74,9 @@ export async function submitTaskExecution(
 ): Promise<SubmitResult> {
   const executedAt = new Date().toISOString();
 
-  if (navigator.onLine) {
+  // Si on a une photoUrl déjà uploadée (donc on était en ligne au moment de la photo)
+  // ET que le réseau est toujours là, on tente l'enregistrement direct.
+  if (navigator.onLine && !input.photoBlob) {
     try {
       const doc = await databases.createDocument(
         APPWRITE_DATABASE_ID,
@@ -99,7 +94,7 @@ export async function submitTaskExecution(
       );
       return { $id: doc.$id, wasOffline: false };
     } catch {
-      // Bascule en mode file d'attente locale
+      // bascule file d'attente locale ci-dessous
     }
   }
 
@@ -112,6 +107,7 @@ export async function submitTaskExecution(
     status: input.status,
     comment: input.comment || null,
     photoAfterUrl: input.photoAfterUrl || null,
+    photoBlob: input.photoBlob || null,
     executedAt,
     createdLocallyAt: Date.now(),
   });
