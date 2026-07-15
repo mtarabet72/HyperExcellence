@@ -117,9 +117,7 @@ export async function verifyAndCloseCapa(params: {
  * Liste les CAPA dont l'échéance est dépassée et qui ne sont pas clôturées
  * (Circuit 6, étape 7 : "Si non clôturée à échéance -> escalade").
  */
-export async function listOverdueCapas(): Promise
-  Array<Capa & { ncGravite: string; ncActionImmediate: string }>
-> {
+export async function listOverdueCapas(): Promise<Array<Capa & { ncGravite: string; ncActionImmediate: string }>> {
   const today = new Date().toISOString().slice(0, 10);
 
   const capasResult = await databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.CAPA, [
