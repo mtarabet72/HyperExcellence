@@ -1,11 +1,18 @@
 // ============================================================
 // HyperExcellence - Export PDF d'audit journalier (Circuit 7)
+// Dédoublonne les exécutions et regroupe par Pilier.
 // ============================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Query } from 'appwrite';
 import { databases } from './appwrite';
-import { APPWRITE_DATABASE_ID, COLLECTIONS, TASK_STATUS_LABELS, GRAVITE_LABELS } from '../constants';
+import {
+  APPWRITE_DATABASE_ID,
+  COLLECTIONS,
+  TASK_STATUS_LABELS,
+  GRAVITE_LABELS,
+  PILIER_LABELS_BY_CIRCUIT_NUMBER,
+} from '../constants';
 
 function startOfToday(): string {
   const d = new Date();
@@ -13,25 +20,45 @@ function startOfToday(): string {
   return d.toISOString();
 }
 
+function dedupeLatestPerTask(executions: any[]): any[] {
+  const latest: Record<string, any> = {};
+  for (const e of executions) {
+    const key = `${e.task_id}|${e.zone_id}`;
+    if (!latest[key] || new Date(e.executed_at) > new Date(latest[key].executed_at)) {
+      latest[key] = e;
+    }
+  }
+  return Object.values(latest);
+}
+
 export async function generateDailyAuditPDF() {
-  // ---------- Récupération des données du jour ----------
-  const [executionsResult, ncResult, tasksResult, zonesResult, profilesResult] = await Promise.all([
-    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.TASK_EXECUTIONS, [
-      Query.greaterThanEqual('executed_at', startOfToday()),
-      Query.limit(1000),
-    ]),
-    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.NON_CONFORMITES, [
-      Query.greaterThanEqual('$createdAt', startOfToday()),
-      Query.limit(1000),
-    ]),
-    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.TASK_TEMPLATES, [Query.limit(500)]),
-    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
-    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
-  ]);
+  const [executionsResult, ncResult, tasksResult, checklistsResult, zonesResult, profilesResult] =
+    await Promise.all([
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.TASK_EXECUTIONS, [
+        Query.greaterThanEqual('executed_at', startOfToday()),
+        Query.limit(1000),
+      ]),
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.NON_CONFORMITES, [
+        Query.greaterThanEqual('$createdAt', startOfToday()),
+        Query.limit(1000),
+      ]),
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.TASK_TEMPLATES, [Query.limit(500)]),
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.CHECKLIST_TEMPLATES, [Query.limit(50)]),
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
+      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
+    ]);
 
   const taskLabels: Record<string, string> = {};
+  const taskToChecklist: Record<string, string> = {};
   for (const t of tasksResult.documents as any[]) {
     taskLabels[t.$id] = `${t.task_number}. ${t.label}`;
+    taskToChecklist[t.$id] = t.checklist_id;
+  }
+  const checklistPilier: Record<string, number> = {};
+  const checklistNames: Record<string, string> = {};
+  for (const c of checklistsResult.documents as any[]) {
+    checklistPilier[c.$id] = c.circuit_number;
+    checklistNames[c.$id] = c.name;
   }
   const zoneNames: Record<string, string> = {};
   for (const z of zonesResult.documents as any[]) {
@@ -42,10 +69,20 @@ export async function generateDailyAuditPDF() {
     profileNames[p.$id] = p.full_name;
   }
 
-  const executions = executionsResult.documents as any[];
+  // ---------- Dédoublonnage : dernière exécution par tâche/zone ----------
+  const executions = dedupeLatestPerTask(executionsResult.documents);
   const total = executions.length;
   const faitCount = executions.filter((e) => e.status === 'FAIT').length;
   const tauxConformite = total > 0 ? Math.round((faitCount / total) * 100) : 0;
+
+  // ---------- Regroupement par pilier (via checklist_id du task) ----------
+  const byPilier: Record<number, any[]> = {};
+  for (const e of executions) {
+    const checklistId = taskToChecklist[e.task_id];
+    const pilierNum = checklistPilier[checklistId] ?? 0;
+    if (!byPilier[pilierNum]) byPilier[pilierNum] = [];
+    byPilier[pilierNum].push(e);
+  }
 
   // ---------- Construction du PDF ----------
   const doc = new jsPDF();
@@ -57,44 +94,78 @@ export async function generateDailyAuditPDF() {
   });
 
   doc.setFontSize(18);
-  doc.setTextColor(11, 61, 145); // navy Marjane
+  doc.setTextColor(11, 61, 145);
   doc.text('HyperExcellence — Audit Journalier', 14, 18);
 
   doc.setFontSize(11);
   doc.setTextColor(80, 80, 80);
   doc.text(today, 14, 26);
-  doc.text(`Taux de conformité global : ${tauxConformite}% (${faitCount}/${total} tâches)`, 14, 33);
+  doc.text(
+    `Taux de conformité global : ${tauxConformite}% (${faitCount}/${total} tâches, dédoublonné)`,
+    14,
+    33
+  );
 
-  // ---------- Tableau des exécutions ----------
-  const executionRows = executions.map((e) => [
-    taskLabels[e.task_id] || e.task_id,
-    zoneNames[e.zone_id] || e.zone_id,
-    profileNames[e.executed_by] || e.executed_by,
-    TASK_STATUS_LABELS[e.status as keyof typeof TASK_STATUS_LABELS] || e.status,
-    new Date(e.executed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-  ]);
+  let currentY = 40;
 
-  autoTable(doc, {
-    startY: 40,
-    head: [['Tâche', 'Zone', 'Exécuté par', 'Statut', 'Heure']],
-    body: executionRows,
-    headStyles: { fillColor: [11, 61, 145] },
-    styles: { fontSize: 8, cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 70 } },
-  });
+  // ---------- Une section par pilier ----------
+  const pilierNumbers = Object.keys(byPilier)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  for (const pilierNum of pilierNumbers) {
+    const items = byPilier[pilierNum];
+    const pilierTitle = PILIER_LABELS_BY_CIRCUIT_NUMBER[pilierNum] || `Circuit ${pilierNum}`;
+    const pilierFait = items.filter((e) => e.status === 'FAIT').length;
+    const pilierTaux = items.length > 0 ? Math.round((pilierFait / items.length) * 100) : 0;
+
+    if (currentY > 250) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.setTextColor(11, 61, 145);
+    doc.text(`${pilierTitle} — ${pilierTaux}% (${pilierFait}/${items.length})`, 14, currentY);
+    currentY += 6;
+
+    const rows = items.map((e) => [
+      taskLabels[e.task_id] || e.task_id,
+      zoneNames[e.zone_id] || e.zone_id,
+      profileNames[e.executed_by] || e.executed_by,
+      TASK_STATUS_LABELS[e.status as keyof typeof TASK_STATUS_LABELS] || e.status,
+      new Date(e.executed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Tâche', 'Zone', 'Exécuté par', 'Statut', 'Heure']],
+      body: rows,
+      headStyles: { fillColor: [11, 61, 145] },
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: { 0: { cellWidth: 70 } },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 12;
+  }
 
   // ---------- Section Non Conformités ----------
   const nc = ncResult.documents as any[];
-  const finalY = (doc as any).lastAutoTable.finalY || 40;
+
+  if (currentY > 250) {
+    doc.addPage();
+    currentY = 20;
+  }
 
   doc.setFontSize(13);
-  doc.setTextColor(11, 61, 145);
-  doc.text('Non Conformités du jour', 14, finalY + 12);
+  doc.setTextColor(220, 38, 38);
+  doc.text('Non Conformités du jour', 14, currentY);
+  currentY += 8;
 
   if (nc.length === 0) {
     doc.setFontSize(10);
     doc.setTextColor(80, 80, 80);
-    doc.text('Aucune non conformité déclarée aujourd\'hui.', 14, finalY + 20);
+    doc.text('Aucune non conformité déclarée aujourd\'hui.', 14, currentY);
   } else {
     const ncRows = nc.map((n) => [
       zoneNames[n.zone_id] || n.zone_id,
@@ -104,7 +175,7 @@ export async function generateDailyAuditPDF() {
     ]);
 
     autoTable(doc, {
-      startY: finalY + 16,
+      startY: currentY,
       head: [['Zone', 'Gravité', 'Action immédiate', 'Statut']],
       body: ncRows,
       headStyles: { fillColor: [220, 38, 38] },
@@ -125,7 +196,6 @@ export async function generateDailyAuditPDF() {
     );
   }
 
-  // ---------- Téléchargement ----------
   const filename = `audit-hyperexcellence-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(filename);
 }
