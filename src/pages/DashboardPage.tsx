@@ -15,13 +15,16 @@ import {
   CIRCUIT_TITLES,
 } from '../constants';
 
+interface OverdueCapaItem extends Capa {
+  ncGravite: string;
+  ncActionImmediate: string;
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
-  const [overdueCapas, setOverdueCapas] = useState
-    Array<Capa & { ncGravite: string; ncActionImmediate: string }>
-  >([]);
+  const [overdueCapas, setOverdueCapas] = useState<OverdueCapaItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -87,7 +90,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Tableau de bord</h1>
           <button onClick={load} className="text-xs text-slate-400">
-            ↻ Actualiser
+            Actualiser
           </button>
         </div>
 
@@ -96,14 +99,13 @@ export default function DashboardPage() {
           disabled={isExporting}
           className="w-full rounded-lg bg-blue-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
         >
-          {isExporting ? 'Génération du PDF...' : '📄 Exporter l\'audit du jour (PDF)'}
+          {isExporting ? 'Génération du PDF...' : 'Exporter l\'audit du jour (PDF)'}
         </button>
 
-        {/* ---------- ESCALADE : CAPA en retard ---------- */}
         {overdueCapas.length > 0 && (
           <div className="bg-red-950/40 border border-red-800 rounded-lg p-3 space-y-2">
             <p className="text-sm font-semibold text-red-300">
-              🚨 {overdueCapas.length} CAPA en retard — escalade requise
+              {overdueCapas.length} CAPA en retard — escalade requise
             </p>
             <div className="space-y-2">
               {overdueCapas.map((c) => (
@@ -119,7 +121,7 @@ export default function DashboardPage() {
                       {GRAVITE_LABELS[c.ncGravite as keyof typeof GRAVITE_LABELS]}
                     </span>
                     <span className="text-xs text-red-400">
-                      Échéance : {c.echeance?.slice(0, 10)}
+                      Échéance : {c.echeance ? c.echeance.slice(0, 10) : '—'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 mt-1">{c.ncActionImmediate}</p>
@@ -132,7 +134,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ---------- Taux de conformité global ---------- */}
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
           <p className="text-xs text-slate-400 mb-2">Taux de conformité global — Aujourd'hui</p>
           <div className="flex items-end gap-2">
@@ -151,7 +152,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ---------- MTTR + Taux rupture APLS ---------- */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
             <p className="text-xs text-slate-400 mb-1">MTTR NC (30j)</p>
@@ -165,11 +165,10 @@ export default function DashboardPage() {
             <p className="text-xl font-bold text-orange-400">
               {stats.tauxRuptureAPLS !== null ? `${stats.tauxRuptureAPLS}%` : '—'}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">Objectif &lt;5%</p>
+            <p className="text-xs text-slate-500 mt-0.5">Objectif moins de 5%</p>
           </div>
         </div>
 
-        {/* ---------- Score SBAM par vendeur ---------- */}
         {stats.scoresSBAM.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-slate-300 mb-2">
@@ -193,7 +192,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ---------- Répartition par circuit ---------- */}
         {stats.parCircuit.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-slate-300 mb-2">Détail par circuit</h2>
@@ -233,7 +231,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ---------- Répartition statuts du jour ---------- */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center">
             <p className="text-2xl font-bold text-emerald-400">{stats.faitToday}</p>
@@ -249,7 +246,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ---------- NC ouvertes par gravité ---------- */}
         <div>
           <h2 className="text-sm font-semibold text-slate-300 mb-2">
             Non Conformités ouvertes
@@ -269,13 +265,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ---------- Top zones à risque ---------- */}
         <div>
           <h2 className="text-sm font-semibold text-slate-300 mb-2">
             Zones à risque (7 derniers jours)
           </h2>
           {stats.topZonesRisque.length === 0 ? (
-            <p className="text-slate-500 text-sm">Aucune non conformité sur 7 jours. 🎉</p>
+            <p className="text-slate-500 text-sm">Aucune non conformité sur 7 jours.</p>
           ) : (
             <div className="space-y-2">
               {stats.topZonesRisque.map((z, i) => (
