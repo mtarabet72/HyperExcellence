@@ -179,3 +179,34 @@ export const PILIER_LABELS_BY_CIRCUIT_NUMBER: Record<number, string> = {
   4: 'PILIER 03 — Libre Service et Ruptures',
   5: 'PILIER 04 — Caisses',
 };
+// ---------- HIÉRARCHIE DES RÔLES (Circuit 9) ----------
+// Rang plus élevé = plus d'autorité. Utilisé pour la validation des NC.
+export const ROLE_RANK: Record<UserRole, number> = {
+  EMPLOYE: 0,
+  ASJ: 0,
+  CHEF_CAISSE: 1,
+  CHEF_SECURITE: 1,
+  MAITRE_METIER: 1,
+  CHEF_RAYON: 1,
+  CHEF_DEPARTEMENT: 2,
+  CHEF_SECTEUR: 3,
+  SUPERVISEUR: 0, // lecture seule, ne participe pas à la validation
+  ADMIN: 4,
+};
+
+// Rang minimum requis pour QUALIFIER une NC (créer la CAPA), selon la gravité
+export const GRAVITE_MIN_RANK_QUALIFICATION: Record<Gravite, number> = {
+  MINEURE: ROLE_RANK.CHEF_RAYON, // 1
+  MAJEURE: ROLE_RANK.CHEF_SECTEUR, // 3
+  CRITIQUE: ROLE_RANK.ADMIN, // 4
+};
+
+export function canQualifyNC(role: UserRole, gravite: Gravite): boolean {
+  if (role === ROLES.SUPERVISEUR) return false; // lecture seule
+  return ROLE_RANK[role] >= GRAVITE_MIN_RANK_QUALIFICATION[gravite];
+}
+
+// Vérification & clôture : réservé au QHSE (Admin), Circuit 6 étape 6
+export function canVerifyAndCloseNC(role: UserRole): boolean {
+  return role === ROLES.ADMIN;
+}
