@@ -1,6 +1,5 @@
 // ============================================================
-// HyperExcellence - Lecture des tâches & enregistrement des exécutions
-// Bascule automatique online/offline (Circuit 8), avec cache local
+// HyperExcellence - Lecture des taches & enregistrement des executions
 // ============================================================
 import { ID, Query } from 'appwrite';
 import { databases } from './appwrite';
@@ -12,6 +11,7 @@ export interface TaskTemplate {
   checklist_id: string;
   task_number: number;
   label: string;
+  label_ar?: string | null;
   requires_photo: boolean;
   requires_temperature: boolean;
   default_gravite: Gravite;
@@ -59,8 +59,8 @@ export interface SubmitTaskExecutionInput {
   executedBy: string;
   status: TaskStatus;
   comment?: string;
-  photoAfterUrl?: string; // déjà uploadée (mode en ligne)
-  photoBlob?: Blob; // photo brute non uploadée (mode hors-ligne)
+  photoAfterUrl?: string;
+  photoBlob?: Blob;
 }
 
 export interface SubmitResult {
@@ -74,8 +74,6 @@ export async function submitTaskExecution(
 ): Promise<SubmitResult> {
   const executedAt = new Date().toISOString();
 
-  // Si on a une photoUrl déjà uploadée (donc on était en ligne au moment de la photo)
-  // ET que le réseau est toujours là, on tente l'enregistrement direct.
   if (navigator.onLine && !input.photoBlob) {
     try {
       const doc = await databases.createDocument(
@@ -94,7 +92,7 @@ export async function submitTaskExecution(
       );
       return { $id: doc.$id, wasOffline: false };
     } catch {
-      // bascule file d'attente locale ci-dessous
+      // bascule file d'attente locale
     }
   }
 
