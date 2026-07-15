@@ -10,7 +10,8 @@ export interface PendingExecution {
   executedBy: string;
   status: string;
   comment?: string | null;
-  photoAfterUrl?: string | null;
+  photoAfterUrl?: string | null; // URL Appwrite si uploadée en ligne
+  photoBlob?: Blob | null; // photo brute si prise hors-ligne, à uploader au sync
   executedAt: string;
   createdLocallyAt: number;
 }
@@ -26,8 +27,8 @@ export interface PendingNC {
 }
 
 export interface CachedTaskList {
-  checklistId: string; // clé
-  tasksJson: string; // liste des TaskTemplate sérialisée
+  checklistId: string;
+  tasksJson: string;
   cachedAt: number;
 }
 
@@ -38,7 +39,7 @@ class OfflineDatabase extends Dexie {
 
   constructor() {
     super('hyperexcellence-offline');
-    this.version(2).stores({
+    this.version(3).stores({
       pendingExecutions: 'offlineId, createdLocallyAt',
       pendingNCs: 'offlineId, createdLocallyAt',
       cachedTasks: 'checklistId, cachedAt',
