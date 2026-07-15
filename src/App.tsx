@@ -5,9 +5,10 @@ import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
+import ExcelExportPage from './pages/ExcelExportPage';
 import { ROLE_LABELS, ROLES } from './constants';
 
-type View = 'home' | 'employees' | 'checklist' | 'nonconformites' | 'dashboard';
+type View = 'home' | 'employees' | 'checklist' | 'nonconformites' | 'dashboard' | 'excel';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -42,6 +43,7 @@ function App() {
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
         {view === 'dashboard' && <DashboardPage />}
+        {view === 'excel' && <ExcelExportPage />}
       </div>
     );
   }
@@ -78,6 +80,15 @@ function App() {
           >
             Non Conformités
           </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('excel')}
+              className="rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Export Excel
+            </button>
+          )}
 
           {isAdmin && (
             <button
