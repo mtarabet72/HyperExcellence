@@ -68,6 +68,13 @@ const CIRCUITS: CircuitOption[] = [
     subtitle: 'Rayon Traiteur',
   },
   {
+    checklistId: 'circuit-2-fruits-legumes',
+    zoneId: '6a571ca000276c6485cf',
+    departmentId: 'fruits_legumes',
+    title: 'Circuit 2 — Service SBAM Fruits et Légumes',
+    subtitle: 'Rayon Fruits et Légumes',
+  },
+  {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
