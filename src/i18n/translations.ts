@@ -64,6 +64,28 @@ export const translations = {
   language: { fr: 'Langue', ar: 'اللغة' },
   french: { fr: 'Français', ar: 'الفرنسية' },
   arabic: { fr: 'Arabe', ar: 'العربية' },
+  // ---------- Checklist ----------
+  circuitLabel: { fr: 'Circuit', ar: 'المسار' },
+  loadingTasks: { fr: 'Chargement des tâches...', ar: 'جاري تحميل المهام...' },
+  photoRequired: { fr: 'Photo requise', ar: 'الصورة مطلوبة' },
+  takePhoto: { fr: 'Prendre une photo', ar: 'التقاط صورة' },
+  uploading: { fr: 'Envoi en cours...', ar: 'جاري الإرسال...' },
+  photoAdded: { fr: 'Photo ajoutée', ar: 'تمت إضافة الصورة' },
+  photoLocalPending: { fr: 'Photo locale (en attente de sync)', ar: 'صورة محلية (بانتظار المزامنة)' },
+  ncFormTitle: { fr: 'Non conformité — Action immédiate obligatoire', ar: 'عدم مطابقة — إجراء فوري إلزامي' },
+  actionPlaceholder: { fr: 'Ex: nettoyage effectué, produit retiré...', ar: 'مثال: تم التنظيف، تم سحب المنتج...' },
+  confirmNCButton: { fr: 'Confirmer la NC', ar: 'تأكيد عدم المطابقة' },
+  savingLabel: { fr: 'Enregistrement...', ar: 'جاري الحفظ...' },
+  actionRequiredAlert: { fr: "L'action immédiate est obligatoire.", ar: 'الإجراء الفوري إلزامي.' },
+  photoRequiredAlert: { fr: 'Une photo est requise pour cette tâche avant de continuer.', ar: 'الصورة مطلوبة لهذه المهمة قبل المتابعة.' },
+  saveErrorAlert: { fr: "Erreur lors de l'enregistrement.", ar: 'خطأ أثناء الحفظ.' },
+  noCircuitAssigned: { fr: "Aucun circuit n'est associé à votre rayon pour le moment.", ar: 'لا يوجد مسار مرتبط برفكم حاليا.' },
+  contactAdmin: { fr: 'Contactez votre administrateur.', ar: 'اتصل بالمسؤول.' },
+  onlineStatus: { fr: 'En ligne', ar: 'متصل' },
+  offlineStatus: { fr: 'Hors ligne — saisie locale activée', ar: 'غير متصل — التسجيل المحلي مفعل' },
+  pendingSync: { fr: 'en attente — Sync', ar: 'بانتظار المزامنة' },
+  syncing: { fr: 'Synchronisation...', ar: 'جاري المزامنة...' },
+  tasksLabel: { fr: 'tâches', ar: 'مهام' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
