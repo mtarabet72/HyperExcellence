@@ -43,7 +43,8 @@
     "appwrite": "^16.0.2",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
-    "dexie": "^4.0.10"
+    "dexie": "^4.0.10",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
