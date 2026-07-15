@@ -1,6 +1,6 @@
 // ============================================================
 // HyperExcellence - Gestion des employés (côté app React)
-// Création via Appwrite Function sécurisée, lecture directe.
+// Création via Appwrite Function sécurisée, lecture/modification directe.
 // ============================================================
 import { Client, Functions, Query } from 'appwrite';
 import { databases, APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } from './appwrite';
@@ -34,15 +34,11 @@ export interface CreateEmployeeInput {
   sector?: string;
 }
 
-/**
- * Crée un nouvel employé via la Function serveur sécurisée.
- * Lève une erreur si l'appelant n'est pas Admin ou si les données sont invalides.
- */
 export async function createEmployee(input: CreateEmployeeInput) {
   const execution = await functions.createExecution(
     CREATE_EMPLOYEE_FUNCTION_ID,
     JSON.stringify(input),
-    false // synchrone : on attend le résultat
+    false
   );
 
   const result = JSON.parse(execution.responseBody);
@@ -52,9 +48,6 @@ export async function createEmployee(input: CreateEmployeeInput) {
   return result;
 }
 
-/**
- * Liste tous les employés (profils), du plus récent au plus ancien.
- */
 export async function listEmployees(): Promise<Profile[]> {
   const result = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
@@ -62,4 +55,44 @@ export async function listEmployees(): Promise<Profile[]> {
     [Query.orderDesc('$createdAt'), Query.limit(100)]
   );
   return result.documents as unknown as Profile[];
+}
+
+export interface UpdateEmployeeInput {
+  fullName?: string;
+  role?: UserRole;
+  departmentId?: string | null;
+  isActive?: boolean;
+}
+
+/**
+ * Met à jour le profil d'un employé (nom, rôle, rayon, statut actif).
+ * Ne touche pas au compte Auth (badge/PIN) — voir resetEmployeePin pour ça.
+ */
+export async function updateEmployee(profileId: string, input: UpdateEmployeeInput) {
+  const payload: Record<string, unknown> = {};
+  if (input.fullName !== undefined) payload.full_name = input.fullName;
+  if (input.role !== undefined) payload.role = input.role;
+  if (input.departmentId !== undefined) payload.department_id = input.departmentId || null;
+  if (input.isActive !== undefined) payload.is_active = input.isActive;
+
+  return databases.updateDocument(
+    APPWRITE_DATABASE_ID,
+    COLLECTIONS.PROFILES,
+    profileId,
+    payload
+  );
+}
+
+/**
+ * Désactive un employé (badge bloqué, historique conservé).
+ */
+export async function deactivateEmployee(profileId: string) {
+  return updateEmployee(profileId, { isActive: false });
+}
+
+/**
+ * Réactive un employé précédemment désactivé.
+ */
+export async function reactivateEmployee(profileId: string) {
+  return updateEmployee(profileId, { isActive: true });
 }
