@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import ExcelExportPage from './pages/ExcelExportPage';
 import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
+import TVDashboardPage from './pages/TVDashboardPage';
 import { ROLE_LABELS, ROLES } from './constants';
 
 type View =
@@ -18,7 +19,8 @@ type View =
   | 'dashboard'
   | 'excel'
   | 'heatmap'
-  | 'photos';
+  | 'photos'
+  | 'tv';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -38,6 +40,10 @@ function App() {
 
   const isAdmin = profile.role === ROLES.ADMIN;
   const canSeeHeatmap = profile.role === ROLES.ADMIN || profile.role === ROLES.CHEF_SECTEUR;
+
+  if (view === 'tv') {
+    return <TVDashboardPage onExit={() => setView('home')} />;
+  }
 
   if (view !== 'home') {
     return (
@@ -77,6 +83,15 @@ function App() {
               className="rounded-lg bg-blue-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
             >
               Tableau de bord
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('tv')}
+              className="rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Mode Écran TV / Bureau
             </button>
           )}
 
