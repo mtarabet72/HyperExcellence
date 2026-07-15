@@ -1,5 +1,5 @@
 // ============================================================
-// HyperExcellence - Écran Checklist (multi-circuits, photos, offline)
+// HyperExcellence - Ecran Checklist (multi-circuits, photos, offline, bilingue)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
 import { getTasksForChecklist, submitTaskExecution, TaskTemplate } from '../lib/tasks';
@@ -7,8 +7,9 @@ import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
 import { offlineDb, generateOfflineId } from '../lib/offlineDb';
 import { syncPendingData, countPending } from '../lib/offlineSync';
-import { TASK_STATUS_LABELS, TaskStatus, GRAVITE_COLORS, ROLES } from '../constants';
+import { TaskStatus, GRAVITE_COLORS, ROLES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CircuitOption {
   checklistId: string;
@@ -119,6 +120,7 @@ const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
 
 export default function ChecklistPage() {
   const { profile } = useAuth();
+  const { t } = useLanguage();
 
   const visibleCircuits = !profile
     ? []
@@ -142,7 +144,6 @@ export default function ChecklistPage() {
   const [ncStatus, setNcStatus] = useState<TaskStatus | null>(null);
   const [actionImmediate, setActionImmediate] = useState('');
 
-  // photoUrls : URL distante (uploadée) OU URL locale temporaire (blob non uploadé)
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [photoBlobs, setPhotoBlobs] = useState<Record<string, Blob>>({});
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
@@ -150,6 +151,13 @@ export default function ChecklistPage() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const statusLabels: Record<TaskStatus, string> = {
+    FAIT: t('status_FAIT' as any),
+    NON_FAIT: t('status_NON_FAIT' as any),
+    ECART: t('status_ECART' as any),
+    NON_APPLICABLE: t('status_NON_APPLICABLE' as any),
+  };
 
   async function refreshPendingCount() {
     setPendingCount(await countPending());
@@ -210,7 +218,6 @@ export default function ChecklistPage() {
         const url = await uploadTaskPhoto(file);
         setPhotoUrls((prev) => ({ ...prev, [task.$id]: url }));
       } catch {
-        // Upload échoué malgré la connexion -> on garde en local comme fallback
         const localUrl = URL.createObjectURL(file);
         setPhotoUrls((prev) => ({ ...prev, [task.$id]: localUrl }));
         setPhotoBlobs((prev) => ({ ...prev, [task.$id]: file }));
@@ -218,7 +225,6 @@ export default function ChecklistPage() {
         setUploadingTaskId(null);
       }
     } else {
-      // Hors-ligne : on garde la photo en local, aperçu immédiat, upload différé au sync
       const localUrl = URL.createObjectURL(file);
       setPhotoUrls((prev) => ({ ...prev, [task.$id]: localUrl }));
       setPhotoBlobs((prev) => ({ ...prev, [task.$id]: file }));
@@ -227,7 +233,7 @@ export default function ChecklistPage() {
 
   function handleStatusClick(task: TaskTemplate, status: TaskStatus) {
     if (task.requires_photo && !photoUrls[task.$id]) {
-      alert('Une photo est requise pour cette tâche avant de continuer.');
+      alert(t('photoRequiredAlert' as any));
       return;
     }
     if (status === 'FAIT') {
@@ -283,7 +289,7 @@ export default function ChecklistPage() {
       setActionImmediate('');
       await refreshPendingCount();
     } catch {
-      alert('Erreur lors de l\'enregistrement.');
+      alert(t('saveErrorAlert' as any));
     } finally {
       setSavingTaskId(null);
     }
@@ -291,7 +297,7 @@ export default function ChecklistPage() {
 
   function confirmNC(task: TaskTemplate) {
     if (!actionImmediate.trim()) {
-      alert('L\'action immédiate est obligatoire.');
+      alert(t('actionRequiredAlert' as any));
       return;
     }
     saveExecution(task, ncStatus!);
@@ -304,9 +310,9 @@ export default function ChecklistPage() {
       <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
         <div className="max-w-xl mx-auto text-center mt-10">
           <p className="text-slate-400 text-sm">
-            Aucun circuit n'est associé à votre rayon pour le moment.
+            {t('noCircuitAssigned' as any)}
             <br />
-            Contactez votre administrateur.
+            {t('contactAdmin' as any)}
           </p>
         </div>
       </div>
@@ -321,21 +327,21 @@ export default function ChecklistPage() {
             isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
           }`}
         >
-          <span>{isOnline ? '🟢 En ligne' : '🔴 Hors ligne — saisie locale activée'}</span>
+          <span>{isOnline ? t('onlineStatus' as any) : t('offlineStatus' as any)}</span>
           {pendingCount > 0 && (
             <button
               onClick={handleSync}
               disabled={!isOnline || isSyncing}
               className="bg-slate-800 text-slate-200 px-2 py-1 rounded-full disabled:opacity-50"
             >
-              {isSyncing ? 'Synchronisation...' : `${pendingCount} en attente — Sync`}
+              {isSyncing ? t('syncing' as any) : `${pendingCount} ${t('pendingSync' as any)}`}
             </button>
           )}
         </div>
 
         {visibleCircuits.length > 1 && (
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Circuit</label>
+            <label className="block text-xs text-slate-400 mb-1">{t('circuitLabel' as any)}</label>
             <select
               value={selectedCircuit?.checklistId}
               onChange={(e) =>
@@ -358,7 +364,7 @@ export default function ChecklistPage() {
           <div>
             <h1 className="text-xl font-bold">{selectedCircuit.title}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              {selectedCircuit.subtitle} · {doneCount}/{tasks.length} tâches
+              {selectedCircuit.subtitle} · {doneCount}/{tasks.length} {t('tasksLabel' as any)}
             </p>
             <div className="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
               <div
@@ -370,7 +376,7 @@ export default function ChecklistPage() {
         )}
 
         {isLoading ? (
-          <p className="text-slate-400 text-sm">Chargement des tâches...</p>
+          <p className="text-slate-400 text-sm">{t('loadingTasks' as any)}</p>
         ) : (
           <div className="space-y-2">
             {tasks.map((task) => {
@@ -395,7 +401,9 @@ export default function ChecklistPage() {
                         {task.task_number}. {task.label}
                       </p>
                       {task.requires_photo && !hasPhoto && (
-                        <p className="text-xs text-amber-400 mt-0.5">📷 Photo requise</p>
+                        <p className="text-xs text-amber-400 mt-0.5">
+                          📷 {t('photoRequired' as any)}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -410,7 +418,9 @@ export default function ChecklistPage() {
                             className="w-16 h-16 object-cover rounded-lg border border-slate-700"
                           />
                           <span className="text-xs text-emerald-400">
-                            {isLocalPhoto ? '✓ Photo locale (en attente de sync)' : '✓ Photo ajoutée'}
+                            {isLocalPhoto
+                              ? '✓ ' + t('photoLocalPending' as any)
+                              : '✓ ' + t('photoAdded' as any)}
                           </span>
                         </div>
                       ) : (
@@ -423,7 +433,7 @@ export default function ChecklistPage() {
                             onChange={(e) => handlePhotoSelected(task, e)}
                             disabled={isUploading}
                           />
-                          {isUploading ? 'Envoi en cours...' : '📷 Prendre une photo'}
+                          {isUploading ? t('uploading' as any) : '📷 ' + t('takePhoto' as any)}
                         </label>
                       )}
                     </div>
@@ -432,12 +442,12 @@ export default function ChecklistPage() {
                   {isAskingNC ? (
                     <div className="mt-3 space-y-2 bg-red-950/30 border border-red-900 rounded-lg p-3">
                       <p className="text-xs text-red-300 font-medium">
-                        ⚠️ Non conformité — Action immédiate obligatoire
+                        ⚠️ {t('ncFormTitle' as any)}
                       </p>
                       <textarea
                         value={actionImmediate}
                         onChange={(e) => setActionImmediate(e.target.value)}
-                        placeholder="Ex: nettoyage effectué, produit retiré..."
+                        placeholder={t('actionPlaceholder' as any)}
                         rows={2}
                         className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                       />
@@ -447,13 +457,13 @@ export default function ChecklistPage() {
                           disabled={savingTaskId === task.$id}
                           className="flex-1 rounded-lg bg-red-500 text-slate-950 font-medium py-2 text-xs"
                         >
-                          {savingTaskId === task.$id ? 'Enregistrement...' : 'Confirmer la NC'}
+                          {savingTaskId === task.$id ? t('savingLabel' as any) : t('confirmNCButton' as any)}
                         </button>
                         <button
                           onClick={() => setNcTaskId(null)}
                           className="rounded-lg bg-slate-800 px-3 py-2 text-xs"
                         >
-                          Annuler
+                          {t('cancel')}
                         </button>
                       </div>
                     </div>
@@ -474,7 +484,7 @@ export default function ChecklistPage() {
                               : 'bg-slate-800 text-slate-300'
                           }`}
                         >
-                          {TASK_STATUS_LABELS[s]}
+                          {statusLabels[s]}
                         </button>
                       ))}
                     </div>
