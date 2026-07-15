@@ -31,7 +31,8 @@
     "seed:circuit2-fruits-legumes": "node scripts/appwrite-seed-circuit2-fruits-legumes.mjs",
     "seed:zone-fruits-legumes": "node scripts/appwrite-seed-zone-fruits-legumes.mjs",
     "seed:circuit2-epices": "node scripts/appwrite-seed-circuit2-epices.mjs",
-    "seed:zone-epices": "node scripts/appwrite-seed-zone-epices.mjs"
+    "seed:zone-epices": "node scripts/appwrite-seed-zone-epices.mjs",
+    "seed:circuit2-electromenager": "node scripts/appwrite-seed-circuit2-electromenager.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
