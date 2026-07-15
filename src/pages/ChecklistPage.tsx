@@ -142,10 +142,11 @@ export default function ChecklistPage() {
   const [ncStatus, setNcStatus] = useState<TaskStatus | null>(null);
   const [actionImmediate, setActionImmediate] = useState('');
 
+  // photoUrls : URL distante (uploadée) OU URL locale temporaire (blob non uploadé)
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [photoBlobs, setPhotoBlobs] = useState<Record<string, Blob>>({});
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
 
-  // ---------- État offline ----------
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -192,6 +193,7 @@ export default function ChecklistPage() {
     setIsLoading(true);
     setCompleted({});
     setPhotoUrls({});
+    setPhotoBlobs({});
     getTasksForChecklist(selectedCircuit.checklistId).then((list) => {
       setTasks(list);
       setIsLoading(false);
@@ -201,23 +203,30 @@ export default function ChecklistPage() {
   async function handlePhotoSelected(task: TaskTemplate, e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!navigator.onLine) {
-      alert('Photo indisponible hors-ligne pour le moment. Vous pourrez continuer sans photo, elle sera à ajouter au retour réseau.');
-      return;
-    }
-    setUploadingTaskId(task.$id);
-    try {
-      const url = await uploadTaskPhoto(file);
-      setPhotoUrls((prev) => ({ ...prev, [task.$id]: url }));
-    } catch {
-      alert('Erreur lors de l\'upload de la photo.');
-    } finally {
-      setUploadingTaskId(null);
+
+    if (navigator.onLine) {
+      setUploadingTaskId(task.$id);
+      try {
+        const url = await uploadTaskPhoto(file);
+        setPhotoUrls((prev) => ({ ...prev, [task.$id]: url }));
+      } catch {
+        // Upload échoué malgré la connexion -> on garde en local comme fallback
+        const localUrl = URL.createObjectURL(file);
+        setPhotoUrls((prev) => ({ ...prev, [task.$id]: localUrl }));
+        setPhotoBlobs((prev) => ({ ...prev, [task.$id]: file }));
+      } finally {
+        setUploadingTaskId(null);
+      }
+    } else {
+      // Hors-ligne : on garde la photo en local, aperçu immédiat, upload différé au sync
+      const localUrl = URL.createObjectURL(file);
+      setPhotoUrls((prev) => ({ ...prev, [task.$id]: localUrl }));
+      setPhotoBlobs((prev) => ({ ...prev, [task.$id]: file }));
     }
   }
 
   function handleStatusClick(task: TaskTemplate, status: TaskStatus) {
-    if (task.requires_photo && !photoUrls[task.$id] && navigator.onLine) {
+    if (task.requires_photo && !photoUrls[task.$id]) {
       alert('Une photo est requise pour cette tâche avant de continuer.');
       return;
     }
@@ -234,12 +243,16 @@ export default function ChecklistPage() {
     if (!profile || !selectedCircuit) return;
     setSavingTaskId(task.$id);
     try {
+      const photoBlob = photoBlobs[task.$id];
+      const photoUrl = !photoBlob ? photoUrls[task.$id] : undefined;
+
       const result = await submitTaskExecution({
         zoneId: selectedCircuit.zoneId,
         taskId: task.$id,
         executedBy: profile.$id,
         status,
-        photoAfterUrl: photoUrls[task.$id],
+        photoAfterUrl: photoUrl,
+        photoBlob,
       });
 
       if (status !== 'FAIT') {
@@ -303,7 +316,6 @@ export default function ChecklistPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-xl mx-auto space-y-4">
-        {/* ---------- Indicateur connexion ---------- */}
         <div
           className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${
             isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
@@ -365,6 +377,7 @@ export default function ChecklistPage() {
               const status = completed[task.$id];
               const isAskingNC = ncTaskId === task.$id;
               const hasPhoto = !!photoUrls[task.$id];
+              const isLocalPhoto = !!photoBlobs[task.$id];
               const isUploading = uploadingTaskId === task.$id;
 
               return (
@@ -396,7 +409,9 @@ export default function ChecklistPage() {
                             alt="Preuve"
                             className="w-16 h-16 object-cover rounded-lg border border-slate-700"
                           />
-                          <span className="text-xs text-emerald-400">✓ Photo ajoutée</span>
+                          <span className="text-xs text-emerald-400">
+                            {isLocalPhoto ? '✓ Photo locale (en attente de sync)' : '✓ Photo ajoutée'}
+                          </span>
                         </div>
                       ) : (
                         <label className="inline-flex items-center gap-2 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-xs cursor-pointer">
