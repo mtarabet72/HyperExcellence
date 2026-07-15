@@ -6,7 +6,13 @@ import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
 import { getDashboardStats, DashboardStats } from '../lib/kpi';
 import { generateDailyAuditPDF } from '../lib/pdfExport';
-import { APPWRITE_DATABASE_ID, COLLECTIONS, GRAVITE_LABELS, GRAVITE_COLORS } from '../constants';
+import {
+  APPWRITE_DATABASE_ID,
+  COLLECTIONS,
+  GRAVITE_LABELS,
+  GRAVITE_COLORS,
+  CIRCUIT_TITLES,
+} from '../constants';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -70,7 +76,6 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* ---------- Export PDF ---------- */}
         <button
           onClick={handleExportPDF}
           disabled={isExporting}
@@ -79,15 +84,15 @@ export default function DashboardPage() {
           {isExporting ? 'Génération du PDF...' : '📄 Exporter l\'audit du jour (PDF)'}
         </button>
 
-        {/* ---------- Taux de conformité ---------- */}
+        {/* ---------- Taux de conformité global ---------- */}
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-          <p className="text-xs text-slate-400 mb-2">Taux de conformité — Aujourd'hui</p>
+          <p className="text-xs text-slate-400 mb-2">Taux de conformité global — Aujourd'hui</p>
           <div className="flex items-end gap-2">
             <span className="text-4xl font-bold" style={{ color: conformiteColor }}>
               {stats.tauxConformite}%
             </span>
             <span className="text-xs text-slate-500 mb-1">
-              ({stats.faitToday}/{stats.totalExecutionsToday} tâches)
+              ({stats.faitToday}/{stats.totalExecutionsToday} tâches, dédoublonné)
             </span>
           </div>
           <div className="w-full h-2 bg-slate-800 rounded-full mt-3 overflow-hidden">
@@ -100,6 +105,46 @@ export default function DashboardPage() {
             />
           </div>
         </div>
+
+        {/* ---------- Répartition par circuit ---------- */}
+        {stats.parCircuit.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-slate-300 mb-2">Détail par circuit</h2>
+            <div className="space-y-2">
+              {stats.parCircuit
+                .sort((a, b) => a.tauxConformite - b.tauxConformite)
+                .map((c) => {
+                  const color =
+                    c.tauxConformite >= 90
+                      ? '#10b981'
+                      : c.tauxConformite >= 80
+                      ? '#f97316'
+                      : '#ef4444';
+                  return (
+                    <div
+                      key={c.checklistId}
+                      className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-slate-300">
+                          {CIRCUIT_TITLES[c.checklistId] || c.checklistId}
+                        </span>
+                        <span className="text-xs font-semibold" style={{ color }}>
+                          {c.tauxConformite}% ({c.fait}/{c.total})
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full transition-all"
+                          style={{ width: `${c.tauxConformite}%`, backgroundColor: color }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
 
         {/* ---------- Répartition statuts du jour ---------- */}
         <div className="grid grid-cols-3 gap-3">
