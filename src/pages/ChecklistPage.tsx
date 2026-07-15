@@ -398,7 +398,7 @@ export default function ChecklistPage() {
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium">
-                        {task.task_number}. {task.label}
+                        {task.task_number}. {language === 'ar' && task.label_ar ? task.label_ar : task.label}
                       </p>
                       {task.requires_photo && !hasPhoto && (
                         <p className="text-xs text-amber-400 mt-0.5">
