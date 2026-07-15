@@ -82,6 +82,13 @@ const CIRCUITS: CircuitOption[] = [
     subtitle: 'Rayon Épices / Olives / Vrac',
   },
   {
+    checklistId: 'circuit-2-electromenager',
+    zoneId: '6a575b18002dbaf4fd24',
+    departmentId: 'electromenager',
+    title: 'Circuit 2 — Service SBAM Electroménager',
+    subtitle: 'Rayon Electroménager',
+  },
+  {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
