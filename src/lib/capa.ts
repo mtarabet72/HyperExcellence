@@ -108,3 +108,35 @@ export async function verifyAndCloseCapa(params: {
     },
   });
 }
+/**
+ * Liste les CAPA dont l'échéance est dépassée et qui ne sont pas clôturées
+ * (Circuit 6, étape 7 : "Si non clôturée à échéance -> escalade").
+ */
+export async function listOverdueCapas(): Promise
+  Array<Capa & { ncGravite: string; ncActionImmediate: string }>
+> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const capasResult = await databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.CAPA, [
+    Query.lessThan('echeance', today),
+    Query.isNull('verified_at'),
+    Query.limit(200),
+  ]);
+
+  const overdue: Array<Capa & { ncGravite: string; ncActionImmediate: string }> = [];
+  for (const capa of capasResult.documents as any[]) {
+    try {
+      const nc = await databases.getDocument(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.NON_CONFORMITES,
+        capa.non_conformite_id
+      );
+      if (nc.status !== 'CLOTUREE') {
+        overdue.push({ ...capa, ncGravite: nc.gravite, ncActionImmediate: nc.action_immediate });
+      }
+    } catch {
+      // NC introuvable, on ignore cette CAPA orpheline
+    }
+  }
+  return overdue;
+}
