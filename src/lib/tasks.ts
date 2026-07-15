@@ -17,9 +17,6 @@ export interface TaskTemplate {
   is_active: boolean;
 }
 
-/**
- * Récupère toutes les tâches actives d'une checklist, triées par ordre.
- */
 export async function getTasksForChecklist(checklistId: string): Promise<TaskTemplate[]> {
   const result = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
@@ -40,11 +37,10 @@ export interface SubmitTaskExecutionInput {
   executedBy: string;
   status: TaskStatus;
   comment?: string;
+  photoBeforeUrl?: string;
+  photoAfterUrl?: string;
 }
 
-/**
- * Enregistre l'exécution d'une tâche (coché par l'employé).
- */
 export async function submitTaskExecution(input: SubmitTaskExecutionInput) {
   return databases.createDocument(
     APPWRITE_DATABASE_ID,
@@ -56,6 +52,8 @@ export async function submitTaskExecution(input: SubmitTaskExecutionInput) {
       executed_by: input.executedBy,
       status: input.status,
       comment: input.comment || null,
+      photo_before: input.photoBeforeUrl || null,
+      photo_after: input.photoAfterUrl || null,
       executed_at: new Date().toISOString(),
     }
   );
