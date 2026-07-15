@@ -60,14 +60,14 @@ export const GRAVITE_LABELS: Record<Gravite, string> = {
 // Qui est notifié selon la gravité (Circuit 6, étape 3)
 export const GRAVITE_NOTIFICATION: Record<Gravite, UserRole[]> = {
   MINEURE: [ROLES.CHEF_RAYON],
-  MAJEURE: [ROLES.CHEF_RAYON, ROLES.CHEF_SECTEUR],
+  MAJEURE: [ROLES.CHEF_RAYON, ROLES.CHEF_DEPARTEMENT],
   CRITIQUE: [ROLES.CHEF_RAYON, ROLES.CHEF_SECTEUR, ROLES.ADMIN],
 };
 
 export const GRAVITE_COLORS: Record<Gravite, string> = {
-  MINEURE: '#eab308', // jaune
-  MAJEURE: '#f97316', // orange
-  CRITIQUE: '#ef4444', // rouge
+  MINEURE: '#eab308',
+  MAJEURE: '#f97316',
+  CRITIQUE: '#ef4444',
 };
 
 // ---------- STATUT TÂCHE (aligné avec Appwrite) ----------
@@ -179,6 +179,7 @@ export const PILIER_LABELS_BY_CIRCUIT_NUMBER: Record<number, string> = {
   4: 'PILIER 03 — Libre Service et Ruptures',
   5: 'PILIER 04 — Caisses',
 };
+
 // ---------- HIÉRARCHIE DES RÔLES (Circuit 9) ----------
 // Rang plus élevé = plus d'autorité. Utilisé pour la validation des NC.
 export const ROLE_RANK: Record<UserRole, number> = {
@@ -195,9 +196,10 @@ export const ROLE_RANK: Record<UserRole, number> = {
 };
 
 // Rang minimum requis pour QUALIFIER une NC (créer la CAPA), selon la gravité
+// Conforme au Circuit 9 : Chef Département valide les NC Majeures de son département.
 export const GRAVITE_MIN_RANK_QUALIFICATION: Record<Gravite, number> = {
   MINEURE: ROLE_RANK.CHEF_RAYON, // 1
-  MAJEURE: ROLE_RANK.CHEF_SECTEUR, // 3
+  MAJEURE: ROLE_RANK.CHEF_DEPARTEMENT, // 2
   CRITIQUE: ROLE_RANK.ADMIN, // 4
 };
 
