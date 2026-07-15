@@ -25,7 +25,7 @@ export async function qualifyAndCreateCapa(params: {
   ncId: string;
   causeRacine: string;
   responsableId: string;
-  echeance: string; // format ISO date
+  echeance: string;
   actorId: string;
 }) {
   await databases.updateDocument(
@@ -54,7 +54,11 @@ export async function qualifyAndCreateCapa(params: {
     action: 'QUALIFICATION_CAPA_CREEE',
     entityType: 'non_conformite',
     entityId: params.ncId,
-    payload: { causeRacine: params.causeRacine, responsableId: params.responsableId, echeance: params.echeance },
+    payload: {
+      causeRacine: params.causeRacine,
+      responsableId: params.responsableId,
+      echeance: params.echeance,
+    },
   });
 
   return capa;
@@ -77,7 +81,7 @@ export async function verifyAndCloseCapa(params: {
   capaId: string;
   ncId: string;
   preuveCorrection: string;
-  verifiedBy: string; // id du profil QHSE
+  verifiedBy: string;
   signatureName: string;
   actorId: string;
 }) {
@@ -108,6 +112,7 @@ export async function verifyAndCloseCapa(params: {
     },
   });
 }
+
 /**
  * Liste les CAPA dont l'échéance est dépassée et qui ne sont pas clôturées
  * (Circuit 6, étape 7 : "Si non clôturée à échéance -> escalade").
