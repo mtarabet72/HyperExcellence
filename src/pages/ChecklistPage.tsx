@@ -89,6 +89,13 @@ const CIRCUITS: CircuitOption[] = [
     subtitle: 'Rayon Electroménager',
   },
   {
+    checklistId: 'circuit-2-textile-pgc',
+    zoneId: '6a575d4f0019d803ff56',
+    departmentId: 'textile_pgc',
+    title: 'Circuit 2 — Service SBAM Textile/PGC',
+    subtitle: 'Rayon Textile / Literie / PGC',
+  },
+  {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
