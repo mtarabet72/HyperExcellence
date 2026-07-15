@@ -1,10 +1,12 @@
 // ============================================================
-// HyperExcellence - Écran Checklist (multi-circuits, photos, filtré par rayon)
+// HyperExcellence - Écran Checklist (multi-circuits, photos, offline)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
 import { getTasksForChecklist, submitTaskExecution, TaskTemplate } from '../lib/tasks';
 import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
+import { offlineDb, generateOfflineId } from '../lib/offlineDb';
+import { syncPendingData, countPending } from '../lib/offlineSync';
 import { TASK_STATUS_LABELS, TaskStatus, GRAVITE_COLORS, ROLES } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -140,9 +142,47 @@ export default function ChecklistPage() {
   const [ncStatus, setNcStatus] = useState<TaskStatus | null>(null);
   const [actionImmediate, setActionImmediate] = useState('');
 
-  // Photos : URL uploadée par tâche, et état d'upload en cours
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
+
+  // ---------- État offline ----------
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  async function refreshPendingCount() {
+    setPendingCount(await countPending());
+  }
+
+  async function handleSync() {
+    if (!navigator.onLine) return;
+    setIsSyncing(true);
+    try {
+      await syncPendingData();
+      await refreshPendingCount();
+    } finally {
+      setIsSyncing(false);
+    }
+  }
+
+  useEffect(() => {
+    refreshPendingCount();
+
+    function onOnline() {
+      setIsOnline(true);
+      handleSync();
+    }
+    function onOffline() {
+      setIsOnline(false);
+    }
+
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedCircuit) {
@@ -161,6 +201,10 @@ export default function ChecklistPage() {
   async function handlePhotoSelected(task: TaskTemplate, e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!navigator.onLine) {
+      alert('Photo indisponible hors-ligne pour le moment. Vous pourrez continuer sans photo, elle sera à ajouter au retour réseau.');
+      return;
+    }
     setUploadingTaskId(task.$id);
     try {
       const url = await uploadTaskPhoto(file);
@@ -173,7 +217,7 @@ export default function ChecklistPage() {
   }
 
   function handleStatusClick(task: TaskTemplate, status: TaskStatus) {
-    if (task.requires_photo && !photoUrls[task.$id]) {
+    if (task.requires_photo && !photoUrls[task.$id] && navigator.onLine) {
       alert('Une photo est requise pour cette tâche avant de continuer.');
       return;
     }
@@ -190,7 +234,7 @@ export default function ChecklistPage() {
     if (!profile || !selectedCircuit) return;
     setSavingTaskId(task.$id);
     try {
-      const execution = await submitTaskExecution({
+      const result = await submitTaskExecution({
         zoneId: selectedCircuit.zoneId,
         taskId: task.$id,
         executedBy: profile.$id,
@@ -199,19 +243,32 @@ export default function ChecklistPage() {
       });
 
       if (status !== 'FAIT') {
-        await createNonConformite({
-          zoneId: selectedCircuit.zoneId,
-          taskExecutionId: execution.$id,
-          gravite: task.default_gravite,
-          actionImmediate: actionImmediate.trim() || 'Non précisé',
-          declaredBy: profile.$id,
-        });
+        if (result.wasOffline) {
+          await offlineDb.pendingNCs.add({
+            offlineId: generateOfflineId(),
+            zoneId: selectedCircuit.zoneId,
+            taskExecutionOfflineId: result.offlineId!,
+            gravite: task.default_gravite,
+            actionImmediate: actionImmediate.trim() || 'Non précisé',
+            declaredBy: profile.$id,
+            createdLocallyAt: Date.now(),
+          });
+        } else {
+          await createNonConformite({
+            zoneId: selectedCircuit.zoneId,
+            taskExecutionId: result.$id,
+            gravite: task.default_gravite,
+            actionImmediate: actionImmediate.trim() || 'Non précisé',
+            declaredBy: profile.$id,
+          });
+        }
       }
 
       setCompleted((prev) => ({ ...prev, [task.$id]: status }));
       setNcTaskId(null);
       setNcStatus(null);
       setActionImmediate('');
+      await refreshPendingCount();
     } catch {
       alert('Erreur lors de l\'enregistrement.');
     } finally {
@@ -246,6 +303,24 @@ export default function ChecklistPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-xl mx-auto space-y-4">
+        {/* ---------- Indicateur connexion ---------- */}
+        <div
+          className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${
+            isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+          }`}
+        >
+          <span>{isOnline ? '🟢 En ligne' : '🔴 Hors ligne — saisie locale activée'}</span>
+          {pendingCount > 0 && (
+            <button
+              onClick={handleSync}
+              disabled={!isOnline || isSyncing}
+              className="bg-slate-800 text-slate-200 px-2 py-1 rounded-full disabled:opacity-50"
+            >
+              {isSyncing ? 'Synchronisation...' : `${pendingCount} en attente — Sync`}
+            </button>
+          )}
+        </div>
+
         {visibleCircuits.length > 1 && (
           <div>
             <label className="block text-xs text-slate-400 mb-1">Circuit</label>
@@ -312,7 +387,6 @@ export default function ChecklistPage() {
                     </div>
                   </div>
 
-                  {/* ---------- Upload photo ---------- */}
                   {task.requires_photo && (
                     <div className="mt-2">
                       {hasPhoto ? (
