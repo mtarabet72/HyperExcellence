@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react';
 import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
 import { getDashboardStats, DashboardStats } from '../lib/kpi';
+import { generateDailyAuditPDF } from '../lib/pdfExport';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, GRAVITE_LABELS, GRAVITE_COLORS } from '../constants';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   async function load() {
     setIsLoading(true);
@@ -31,6 +33,17 @@ export default function DashboardPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function handleExportPDF() {
+    setIsExporting(true);
+    try {
+      await generateDailyAuditPDF();
+    } catch {
+      alert('Erreur lors de la génération du PDF.');
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   if (isLoading || !stats) {
     return (
@@ -56,6 +69,15 @@ export default function DashboardPage() {
             ↻ Actualiser
           </button>
         </div>
+
+        {/* ---------- Export PDF ---------- */}
+        <button
+          onClick={handleExportPDF}
+          disabled={isExporting}
+          className="w-full rounded-lg bg-blue-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
+        >
+          {isExporting ? 'Génération du PDF...' : '📄 Exporter l\'audit du jour (PDF)'}
+        </button>
 
         {/* ---------- Taux de conformité ---------- */}
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
