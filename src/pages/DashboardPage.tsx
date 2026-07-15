@@ -6,6 +6,7 @@ import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
 import { getDashboardStats, DashboardStats } from '../lib/kpi';
 import { generateDailyAuditPDF } from '../lib/pdfExport';
+import { listOverdueCapas, Capa } from '../lib/capa';
 import {
   APPWRITE_DATABASE_ID,
   COLLECTIONS,
@@ -18,15 +19,19 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
+  const [overdueCapas, setOverdueCapas] = useState
+    Array<Capa & { ncGravite: string; ncActionImmediate: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
   async function load() {
     setIsLoading(true);
-    const [dashboardStats, zonesResult, profilesResult] = await Promise.all([
+    const [dashboardStats, zonesResult, profilesResult, overdue] = await Promise.all([
       getDashboardStats(),
       databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
       databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
+      listOverdueCapas(),
     ]);
     setStats(dashboardStats);
 
@@ -42,6 +47,7 @@ export default function DashboardPage() {
     }
     setProfileNames(pNames);
 
+    setOverdueCapas(overdue);
     setIsLoading(false);
   }
 
@@ -92,6 +98,39 @@ export default function DashboardPage() {
         >
           {isExporting ? 'Génération du PDF...' : '📄 Exporter l\'audit du jour (PDF)'}
         </button>
+
+        {/* ---------- ESCALADE : CAPA en retard ---------- */}
+        {overdueCapas.length > 0 && (
+          <div className="bg-red-950/40 border border-red-800 rounded-lg p-3 space-y-2">
+            <p className="text-sm font-semibold text-red-300">
+              🚨 {overdueCapas.length} CAPA en retard — escalade requise
+            </p>
+            <div className="space-y-2">
+              {overdueCapas.map((c) => (
+                <div key={c.$id} className="bg-slate-950 border border-red-900 rounded-lg p-2">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      style={{
+                        backgroundColor: `${GRAVITE_COLORS[c.ncGravite as keyof typeof GRAVITE_COLORS]}20`,
+                        color: GRAVITE_COLORS[c.ncGravite as keyof typeof GRAVITE_COLORS],
+                      }}
+                    >
+                      {GRAVITE_LABELS[c.ncGravite as keyof typeof GRAVITE_LABELS]}
+                    </span>
+                    <span className="text-xs text-red-400">
+                      Échéance : {c.echeance?.slice(0, 10)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1">{c.ncActionImmediate}</p>
+                  <p className="text-xs text-slate-500">
+                    Responsable : {profileNames[c.responsable_id] || c.responsable_id}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ---------- Taux de conformité global ---------- */}
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
