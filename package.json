@@ -26,7 +26,8 @@
     "seed:zone-boulangerie": "node scripts/appwrite-seed-zone-boulangerie.mjs",
     "seed:circuit2-poissonnerie": "node scripts/appwrite-seed-circuit2-poissonnerie.mjs",
     "seed:zone-poissonnerie": "node scripts/appwrite-seed-zone-poissonnerie.mjs",
-    "seed:circuit2-traiteur": "node scripts/appwrite-seed-circuit2-traiteur.mjs"
+    "seed:circuit2-traiteur": "node scripts/appwrite-seed-circuit2-traiteur.mjs",
+    "seed:zone-traiteur": "node scripts/appwrite-seed-zone-traiteur.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
