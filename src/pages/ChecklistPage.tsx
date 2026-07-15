@@ -120,7 +120,7 @@ const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
 
 export default function ChecklistPage() {
   const { profile } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const visibleCircuits = !profile
     ? []
@@ -385,6 +385,8 @@ export default function ChecklistPage() {
               const hasPhoto = !!photoUrls[task.$id];
               const isLocalPhoto = !!photoBlobs[task.$id];
               const isUploading = uploadingTaskId === task.$id;
+              const displayLabel =
+                language === 'ar' && task.label_ar ? task.label_ar : task.label;
 
               return (
                 <div
@@ -398,7 +400,7 @@ export default function ChecklistPage() {
                     />
                     <div className="flex-1">
                       <p className="text-sm font-medium">
-                        {task.task_number}. {language === 'ar' && task.label_ar ? task.label_ar : task.label}
+                        {task.task_number}. {displayLabel}
                       </p>
                       {task.requires_photo && !hasPhoto && (
                         <p className="text-xs text-amber-400 mt-0.5">
