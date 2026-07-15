@@ -38,7 +38,8 @@
     "seed:zone-textile": "node scripts/appwrite-seed-zone-textile.mjs",
     "purge:test-data": "node scripts/appwrite-purge-test-data.mjs",
     "translate:circuit1": "node scripts/appwrite-translate-circuit1.mjs",
-    "translate:circuit3": "node scripts/appwrite-translate-circuit3.mjs"
+    "translate:circuit3": "node scripts/appwrite-translate-circuit3.mjs",
+    "translate:circuit5": "node scripts/appwrite-translate-circuit5.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
