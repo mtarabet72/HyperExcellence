@@ -35,7 +35,8 @@
     "seed:circuit2-electromenager": "node scripts/appwrite-seed-circuit2-electromenager.mjs",
     "seed:zone-electromenager": "node scripts/appwrite-seed-zone-electromenager.mjs",
     "seed:circuit2-textile": "node scripts/appwrite-seed-circuit2-textile.mjs",
-    "seed:zone-textile": "node scripts/appwrite-seed-zone-textile.mjs"
+    "seed:zone-textile": "node scripts/appwrite-seed-zone-textile.mjs",
+    "purge:test-data": "node scripts/appwrite-purge-test-data.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
