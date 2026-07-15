@@ -1,17 +1,13 @@
 // ============================================================
 // HyperExcellence - Synchronisation offline -> Appwrite (Circuit 8)
+// Upload différé des photos prises hors-ligne.
 // ============================================================
 import { ID, Query } from 'appwrite';
 import { databases } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS } from '../constants';
-import { offlineDb, PendingExecution, PendingNC } from './offlineDb';
+import { offlineDb } from './offlineDb';
+import { uploadTaskPhoto } from './storage';
 
-/**
- * Synchronise toutes les exécutions et NC en attente vers Appwrite.
- * Résolution de conflit : horodatage serveur fait foi (executed_at envoyé
- * tel quel, mais $createdAt sera celui du serveur au moment du sync).
- * offlineId évite les doublons si la fonction est appelée deux fois.
- */
 export async function syncPendingData(): Promise<{ synced: number; failed: number }> {
   let synced = 0;
   let failed = 0;
@@ -20,12 +16,10 @@ export async function syncPendingData(): Promise<{ synced: number; failed: numbe
     .orderBy('createdLocallyAt')
     .toArray();
 
-  // Map offlineId d'exécution -> $id réel Appwrite, pour lier les NC ensuite
   const executionIdMap: Record<string, string> = {};
 
   for (const exec of pendingExecutions) {
     try {
-      // Vérifie si déjà synchronisée (déduplication via offline_id)
       const existing = await databases.listDocuments(
         APPWRITE_DATABASE_ID,
         COLLECTIONS.TASK_EXECUTIONS,
@@ -36,6 +30,15 @@ export async function syncPendingData(): Promise<{ synced: number; failed: numbe
       if (existing.total > 0) {
         realId = existing.documents[0].$id;
       } else {
+        // Upload de la photo prise hors-ligne, maintenant que le réseau est là
+        let photoUrl = exec.photoAfterUrl || null;
+        if (exec.photoBlob && !photoUrl) {
+          const file = new File([exec.photoBlob], `${exec.offlineId}.jpg`, {
+            type: exec.photoBlob.type || 'image/jpeg',
+          });
+          photoUrl = await uploadTaskPhoto(file);
+        }
+
         const created = await databases.createDocument(
           APPWRITE_DATABASE_ID,
           COLLECTIONS.TASK_EXECUTIONS,
@@ -46,7 +49,7 @@ export async function syncPendingData(): Promise<{ synced: number; failed: numbe
             executed_by: exec.executedBy,
             status: exec.status,
             comment: exec.comment || null,
-            photo_after: exec.photoAfterUrl || null,
+            photo_after: photoUrl,
             executed_at: exec.executedAt,
             offline_id: exec.offlineId,
           }
