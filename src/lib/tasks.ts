@@ -1,6 +1,6 @@
 // ============================================================
 // HyperExcellence - Lecture des tâches & enregistrement des exécutions
-// Bascule automatique online/offline (Circuit 8)
+// Bascule automatique online/offline (Circuit 8), avec cache local
 // ============================================================
 import { ID, Query } from 'appwrite';
 import { databases } from './appwrite';
@@ -19,18 +19,45 @@ export interface TaskTemplate {
   is_active: boolean;
 }
 
+/**
+ * Récupère les tâches d'une checklist.
+ * - En ligne : lit Appwrite, puis met à jour le cache local pour un usage
+ *   hors-ligne futur (préchargement, Circuit 8 point 1).
+ * - Hors ligne : lit directement le cache local.
+ */
 export async function getTasksForChecklist(checklistId: string): Promise<TaskTemplate[]> {
-  const result = await databases.listDocuments(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.TASK_TEMPLATES,
-    [
-      Query.equal('checklist_id', checklistId),
-      Query.equal('is_active', true),
-      Query.orderAsc('sort_order'),
-      Query.limit(300),
-    ]
-  );
-  return result.documents as unknown as TaskTemplate[];
+  if (navigator.onLine) {
+    try {
+      const result = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.TASK_TEMPLATES,
+        [
+          Query.equal('checklist_id', checklistId),
+          Query.equal('is_active', true),
+          Query.orderAsc('sort_order'),
+          Query.limit(300),
+        ]
+      );
+      const tasks = result.documents as unknown as TaskTemplate[];
+
+      // Mise à jour du cache local pour usage hors-ligne futur
+      await offlineDb.cachedTasks.put({
+        checklistId,
+        tasksJson: JSON.stringify(tasks),
+        cachedAt: Date.now(),
+      });
+
+      return tasks;
+    } catch {
+      // Requête échouée malgré navigator.onLine=true -> on tente le cache
+    }
+  }
+
+  const cached = await offlineDb.cachedTasks.get(checklistId);
+  if (cached) {
+    return JSON.parse(cached.tasksJson) as TaskTemplate[];
+  }
+  return [];
 }
 
 export interface SubmitTaskExecutionInput {
@@ -45,15 +72,10 @@ export interface SubmitTaskExecutionInput {
 
 export interface SubmitResult {
   $id: string;
-  offlineId?: string; // présent si enregistré hors-ligne
+  offlineId?: string;
   wasOffline: boolean;
 }
 
-/**
- * Enregistre l'exécution d'une tâche.
- * - En ligne : écrit directement dans Appwrite.
- * - Hors ligne : écrit dans la file d'attente locale (Dexie), sync plus tard.
- */
 export async function submitTaskExecution(
   input: SubmitTaskExecutionInput
 ): Promise<SubmitResult> {
@@ -77,8 +99,7 @@ export async function submitTaskExecution(
       );
       return { $id: doc.$id, wasOffline: false };
     } catch {
-      // La requête a échoué malgré navigator.onLine=true (ex: coupure brutale)
-      // -> on bascule en mode file d'attente locale.
+      // Bascule en mode file d'attente locale
     }
   }
 
