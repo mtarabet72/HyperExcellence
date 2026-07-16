@@ -48,7 +48,8 @@
     "translate:circuit2-traiteur": "node scripts/appwrite-translate-circuit2-traiteur.mjs",
     "translate:circuit2-fruits-legumes": "node scripts/appwrite-translate-circuit2-fruits-legumes.mjs",
     "translate:circuit2-epices": "node scripts/appwrite-translate-circuit2-epices.mjs",
-    "translate:circuit2-electromenager": "node scripts/appwrite-translate-circuit2-electromenager.mjs"
+    "translate:circuit2-electromenager": "node scripts/appwrite-translate-circuit2-electromenager.mjs",
+    "translate:circuit2-textile": "node scripts/appwrite-translate-circuit2-textile.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
