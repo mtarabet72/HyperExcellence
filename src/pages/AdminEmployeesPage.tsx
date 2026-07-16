@@ -1,5 +1,5 @@
 // ============================================================
-// HyperExcellence - Écran Admin : gestion des employés
+// HyperExcellence - Ecran Admin : gestion des employes
 // ============================================================
 import { useEffect, useState, FormEvent } from 'react';
 import {
@@ -10,29 +10,40 @@ import {
   reactivateEmployee,
   Profile,
 } from '../lib/employees';
-import { ROLES, ROLE_LABELS, DEPARTMENTS, UserRole } from '../constants';
+import {
+  ROLES,
+  ROLE_LABELS,
+  DEPARTMENTS,
+  SECTORS,
+  SECTOR_LABELS,
+  ROLES_SECTOR_WIDE,
+  UserRole,
+} from '../constants';
 
 export default function AdminEmployeesPage() {
   const [employees, setEmployees] = useState<Profile[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(true);
 
-  // ---------- Formulaire de création ----------
   const [badgeNumber, setBadgeNumber] = useState('');
   const [pin, setPin] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<UserRole>(ROLES.EMPLOYE);
   const [departmentId, setDepartmentId] = useState('');
+  const [sector, setSector] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ---------- Édition inline ----------
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFullName, setEditFullName] = useState('');
   const [editRole, setEditRole] = useState<UserRole>(ROLES.EMPLOYE);
   const [editDepartmentId, setEditDepartmentId] = useState('');
+  const [editSector, setEditSector] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  const isSectorRole = ROLES_SECTOR_WIDE.includes(role);
+  const isEditSectorRole = ROLES_SECTOR_WIDE.includes(editRole);
 
   async function loadEmployees() {
     setIsLoadingList(true);
@@ -62,17 +73,19 @@ export default function AdminEmployeesPage() {
         pin,
         fullName,
         role,
-        departmentId: departmentId || undefined,
+        departmentId: isSectorRole ? undefined : departmentId || undefined,
+        sector: isSectorRole ? sector || undefined : undefined,
       });
-      setSuccessMessage(`Employé "${fullName}" créé avec succès.`);
+      setSuccessMessage(`Employe "${fullName}" cree avec succes.`);
       setBadgeNumber('');
       setPin('');
       setFullName('');
       setRole(ROLES.EMPLOYE);
       setDepartmentId('');
+      setSector('');
       await loadEmployees();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la création.');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la creation.');
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +96,7 @@ export default function AdminEmployeesPage() {
     setEditFullName(emp.full_name);
     setEditRole(emp.role);
     setEditDepartmentId(emp.department_id || '');
+    setEditSector(emp.sector || '');
   }
 
   async function saveEdit(profileId: string) {
@@ -92,10 +106,12 @@ export default function AdminEmployeesPage() {
     }
     setIsSavingEdit(true);
     try {
+      const sectorRole = ROLES_SECTOR_WIDE.includes(editRole);
       await updateEmployee(profileId, {
         fullName: editFullName.trim(),
         role: editRole,
-        departmentId: editDepartmentId || null,
+        departmentId: sectorRole ? null : editDepartmentId || null,
+        sector: sectorRole ? editSector || null : null,
       });
       setEditingId(null);
       await loadEmployees();
@@ -122,18 +138,27 @@ export default function AdminEmployeesPage() {
     }
   }
 
+  function scopeLabel(emp: Profile): string {
+    if (ROLES_SECTOR_WIDE.includes(emp.role) && emp.sector) {
+      return SECTOR_LABELS[emp.sector as keyof typeof SECTOR_LABELS] || emp.sector;
+    }
+    if (emp.department_id) {
+      return DEPARTMENTS.find((d) => d.id === emp.department_id)?.name || emp.department_id;
+    }
+    return '—';
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-8">
-        <h1 className="text-xl font-bold">Gestion des employés</h1>
+        <h1 className="text-xl font-bold">Gestion des employes</h1>
 
-        {/* ---------- Formulaire de création ---------- */}
         <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
-          <h2 className="text-sm font-semibold text-slate-300">Nouvel employé</h2>
+          <h2 className="text-sm font-semibold text-slate-300">Nouvel employe</h2>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Numéro de badge</label>
+              <label className="block text-xs text-slate-400 mb-1">Numero de badge</label>
               <input
                 type="text"
                 value={badgeNumber}
@@ -162,14 +187,14 @@ export default function AdminEmployeesPage() {
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Nom Prénom"
+              placeholder="Nom Prenom"
               className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Rôle</label>
+              <label className="block text-xs text-slate-400 mb-1">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as UserRole)}
@@ -183,21 +208,47 @@ export default function AdminEmployeesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Rayon / Département</label>
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
-              >
-                <option value="">— Aucun —</option>
-                {DEPARTMENTS.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              {isSectorRole ? (
+                <>
+                  <label className="block text-xs text-slate-400 mb-1">Secteur (plusieurs rayons)</label>
+                  <select
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                    className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+                  >
+                    <option value="">— Selectionner —</option>
+                    {Object.values(SECTORS).map((s) => (
+                      <option key={s} value={s}>
+                        {SECTOR_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label className="block text-xs text-slate-400 mb-1">Rayon / Departement</label>
+                  <select
+                    value={departmentId}
+                    onChange={(e) => setDepartmentId(e.target.value)}
+                    className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+                  >
+                    <option value="">— Aucun —</option>
+                    {DEPARTMENTS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           </div>
+
+          {isSectorRole && (
+            <p className="text-xs text-slate-500">
+              Ce role verra automatiquement tous les circuits des rayons appartenant a ce secteur.
+            </p>
+          )}
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
           {successMessage && <p className="text-emerald-400 text-sm">{successMessage}</p>}
@@ -207,14 +258,13 @@ export default function AdminEmployeesPage() {
             disabled={isSubmitting}
             className="w-full rounded-lg bg-amber-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
           >
-            {isSubmitting ? 'Création...' : 'Créer l\'employé'}
+            {isSubmitting ? 'Creation...' : "Creer l'employe"}
           </button>
         </form>
 
-        {/* ---------- Liste des employés ---------- */}
         <div>
           <h2 className="text-sm font-semibold text-slate-300 mb-3">
-            Employés ({employees.length})
+            Employes ({employees.length})
           </h2>
           {isLoadingList ? (
             <p className="text-slate-500 text-sm">Chargement...</p>
@@ -233,27 +283,19 @@ export default function AdminEmployeesPage() {
                         <div>
                           <p className="text-sm font-medium">{emp.full_name}</p>
                           <p className="text-xs text-slate-400">
-                            {ROLE_LABELS[emp.role]} · Badge {emp.badge_number || '—'}
-                            {emp.department_id && (
-                              <>
-                                {' · '}
-                                {DEPARTMENTS.find((d) => d.id === emp.department_id)?.name ||
-                                  emp.department_id}
-                              </>
-                            )}
+                            {ROLE_LABELS[emp.role]} · Badge {emp.badge_number || '—'} ·{' '}
+                            {scopeLabel(emp)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              emp.is_active
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-red-500/20 text-red-400'
-                            }`}
-                          >
-                            {emp.is_active ? 'Actif' : 'Inactif'}
-                          </span>
-                        </div>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            emp.is_active
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-red-500/20 text-red-400'
+                          }`}
+                        >
+                          {emp.is_active ? 'Actif' : 'Inactif'}
+                        </span>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -275,18 +317,33 @@ export default function AdminEmployeesPage() {
                               </option>
                             ))}
                           </select>
-                          <select
-                            value={editDepartmentId}
-                            onChange={(e) => setEditDepartmentId(e.target.value)}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
-                          >
-                            <option value="">— Aucun —</option>
-                            {DEPARTMENTS.map((d) => (
-                              <option key={d.id} value={d.id}>
-                                {d.name}
-                              </option>
-                            ))}
-                          </select>
+                          {isEditSectorRole ? (
+                            <select
+                              value={editSector}
+                              onChange={(e) => setEditSector(e.target.value)}
+                              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+                            >
+                              <option value="">— Secteur —</option>
+                              {Object.values(SECTORS).map((s) => (
+                                <option key={s} value={s}>
+                                  {SECTOR_LABELS[s]}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <select
+                              value={editDepartmentId}
+                              onChange={(e) => setEditDepartmentId(e.target.value)}
+                              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+                            >
+                              <option value="">— Aucun —</option>
+                              {DEPARTMENTS.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.name}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </div>
                     )}
@@ -312,8 +369,8 @@ export default function AdminEmployeesPage() {
                             {togglingId === emp.$id
                               ? '...'
                               : emp.is_active
-                              ? 'Désactiver'
-                              : 'Réactiver'}
+                              ? 'Desactiver'
+                              : 'Reactiver'}
                           </button>
                         </>
                       ) : (
