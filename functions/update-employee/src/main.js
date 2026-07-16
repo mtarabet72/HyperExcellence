@@ -1,17 +1,26 @@
 // ============================================================
 // HyperExcellence - Appwrite Function : modification d'employe
-// + Garde-fou de connexion (fusionne pour rester sous la limite que
+// + Garde-fou de connexion (fusionne pour rester sous la limite
 // de 2 Functions du plan gratuit Appwrite).
-//
-// Deux familles d'actions distinguees par la presence de "action":
-// - action = check/fail/reset : garde-fou PIN, PAS d'authentification requise
-// - pas d'action (update classique) : modification profil, ADMIN requis
 // ============================================================
 import { Client, Databases, Query } from 'node-appwrite';
 
 const DB_ID = 'hyperclean_pro';
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
+
+async function findProfileByBadge(databases, badgeNumber) {
+  // Recherche insensible a la casse : on recupere tous les profils avec
+  // badge_number renseigne et on compare en minuscules cote code.
+  const all = await databases.listDocuments(DB_ID, 'profiles', [
+    Query.isNotNull('badge_number'),
+    Query.limit(500),
+  ]);
+  const target = badgeNumber.trim().toLowerCase();
+  return all.documents.find(
+    (p) => (p.badge_number || '').trim().toLowerCase() === target
+  );
+}
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -32,14 +41,12 @@ export default async ({ req, res, log, error }) => {
         return res.json({ error: 'badgeNumber manquant.' }, 400);
       }
 
-      const profiles = await databases.listDocuments(DB_ID, 'profiles', [
-        Query.equal('badge_number', badgeNumber),
-      ]);
+      const profile = await findProfileByBadge(databases, badgeNumber);
 
-      if (profiles.documents.length === 0) {
+      if (!profile) {
+        log('Aucun profil trouve pour badge: ' + badgeNumber);
         return res.json({ allowed: true });
       }
-      const profile = profiles.documents[0];
 
       if (action === 'check') {
         const now = new Date();
@@ -105,4 +112,4 @@ export default async ({ req, res, log, error }) => {
     error(e.message || String(e));
     return res.json({ error: e.message || 'Erreur inconnue.' }, 500);
   }
-};
+}; AA
