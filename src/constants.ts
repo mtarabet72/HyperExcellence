@@ -1,9 +1,9 @@
 // ============================================================
 // HyperExcellence - Constantes centrales
-// Source de vérité unique pour rôles, gravités, statuts, piliers
+// Source de verite unique pour roles, gravites, statuts, piliers
 // ============================================================
 
-// ---------- RÔLES (Circuit 9) ----------
+// ---------- ROLES (Circuit 9) ----------
 export const ROLES = {
   ADMIN: 'ADMIN',
   CHEF_SECTEUR: 'CHEF_SECTEUR',
@@ -22,14 +22,33 @@ export type UserRole = (typeof ROLES)[keyof typeof ROLES];
 export const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Administrateur QHSE',
   CHEF_SECTEUR: 'Chef de Secteur',
-  CHEF_DEPARTEMENT: 'Chef de Département',
+  CHEF_DEPARTEMENT: 'Chef de Departement',
   CHEF_RAYON: 'Chef de Rayon',
   SUPERVISEUR: 'Superviseur Commerce',
-  CHEF_SECURITE: 'Chef Sécurité',
+  CHEF_SECURITE: 'Chef Securite',
   ASJ: 'Agent ASJ',
   CHEF_CAISSE: 'Chef de Caisse',
-  MAITRE_METIER: 'Maître Métier',
-  EMPLOYE: 'Employé / Vendeur',
+  MAITRE_METIER: 'Maitre Metier',
+  EMPLOYE: 'Employe / Vendeur',
+};
+
+// ---------- ROLES A ACCES PAR SECTEUR (plusieurs rayons a la fois) ----------
+// Ces roles ne sont pas assignes a UN rayon mais a UN secteur entier.
+export const ROLES_SECTOR_WIDE: UserRole[] = [ROLES.CHEF_DEPARTEMENT, ROLES.CHEF_SECTEUR];
+
+// ---------- SECTEURS ----------
+export const SECTORS = {
+  FRAIS: 'FRAIS',
+  PGC: 'PGC',
+  SUPPORT: 'SUPPORT',
+} as const;
+
+export type Sector = (typeof SECTORS)[keyof typeof SECTORS];
+
+export const SECTOR_LABELS: Record<Sector, string> = {
+  FRAIS: 'Secteur Frais',
+  PGC: 'Secteur PGC / Non-Alimentaire',
+  SUPPORT: 'Secteur Support',
 };
 
 // ---------- PILIERS (Circuits 1, 2, 4, 5) ----------
@@ -42,7 +61,7 @@ export const PILIERS = {
 
 export type PilierId = keyof typeof PILIERS;
 
-// ---------- GRAVITÉ NON CONFORMITÉ (Circuit 6) ----------
+// ---------- GRAVITE NON CONFORMITE (Circuit 6) ----------
 export const GRAVITES = {
   MINEURE: 'MINEURE',
   MAJEURE: 'MAJEURE',
@@ -57,7 +76,6 @@ export const GRAVITE_LABELS: Record<Gravite, string> = {
   CRITIQUE: 'Critique',
 };
 
-// Qui est notifié selon la gravité (Circuit 6, étape 3)
 export const GRAVITE_NOTIFICATION: Record<Gravite, UserRole[]> = {
   MINEURE: [ROLES.CHEF_RAYON],
   MAJEURE: [ROLES.CHEF_RAYON, ROLES.CHEF_DEPARTEMENT],
@@ -70,7 +88,7 @@ export const GRAVITE_COLORS: Record<Gravite, string> = {
   CRITIQUE: '#ef4444',
 };
 
-// ---------- STATUT TÂCHE (aligné avec Appwrite) ----------
+// ---------- STATUT TACHE ----------
 export const TASK_STATUS = {
   FAIT: 'FAIT',
   NON_FAIT: 'NON_FAIT',
@@ -83,11 +101,11 @@ export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   FAIT: 'Fait',
   NON_FAIT: 'Non fait',
-  ECART: 'Écart',
+  ECART: 'Ecart',
   NON_APPLICABLE: 'Non applicable',
 };
 
-// ---------- STATUT NON CONFORMITÉ ----------
+// ---------- STATUT NON CONFORMITE ----------
 export const NC_STATUS = {
   OUVERTE: 'OUVERTE',
   EN_COURS: 'EN_COURS',
@@ -99,10 +117,10 @@ export type NCStatus = (typeof NC_STATUS)[keyof typeof NC_STATUS];
 export const NC_STATUS_LABELS: Record<NCStatus, string> = {
   OUVERTE: 'Ouverte',
   EN_COURS: 'En cours',
-  CLOTUREE: 'Clôturée',
+  CLOTUREE: 'Cloturee',
 };
 
-// ---------- NIVEAU DE RISQUE ZONE (HACCP) ----------
+// ---------- NIVEAU DE RISQUE ZONE ----------
 export const RISK_LEVELS = {
   CRITIQUE: 'CRITIQUE',
   MAJEUR: 'MAJEUR',
@@ -111,7 +129,7 @@ export const RISK_LEVELS = {
 
 export type RiskLevel = (typeof RISK_LEVELS)[keyof typeof RISK_LEVELS];
 
-// ---------- FRÉQUENCE CHECKLIST ----------
+// ---------- FREQUENCE CHECKLIST ----------
 export const FREQUENCIES = {
   QUOTIDIENNE: 'QUOTIDIENNE',
   HEBDO: 'HEBDO',
@@ -136,52 +154,59 @@ export const COLLECTIONS = {
   AUDIT_LOG: 'audit_log',
 } as const;
 
-// ---------- DÉPARTEMENTS / RAYONS (correspond aux Teams Appwrite) ----------
+// ---------- DEPARTEMENTS / RAYONS (correspond aux Teams Appwrite) ----------
 export const DEPARTMENTS = [
-  { id: 'boucherie', name: 'Boucherie / Volaille à la coupe', secteur: 'FRAIS' },
+  { id: 'boucherie', name: 'Boucherie / Volaille a la coupe', secteur: 'FRAIS' },
   { id: 'poissonnerie', name: 'Poissonnerie', secteur: 'FRAIS' },
   { id: 'traiteur', name: 'Traiteur', secteur: 'FRAIS' },
-  { id: 'fromage_charcuterie', name: 'Fromage / Charcuterie à la coupe', secteur: 'FRAIS' },
-  { id: 'boulangerie', name: 'Boulangerie / Pâtisserie', secteur: 'FRAIS' },
-  { id: 'fruits_legumes', name: 'Fruits et Légumes', secteur: 'FRAIS' },
-  { id: 'epices_vrac', name: 'Épices / Olives / Vrac', secteur: 'FRAIS' },
-  { id: 'electromenager', name: 'Electroménager', secteur: 'PGC' },
+  { id: 'fromage_charcuterie', name: 'Fromage / Charcuterie a la coupe', secteur: 'FRAIS' },
+  { id: 'boulangerie', name: 'Boulangerie / Patisserie', secteur: 'FRAIS' },
+  { id: 'fruits_legumes', name: 'Fruits et Legumes', secteur: 'FRAIS' },
+  { id: 'epices_vrac', name: 'Epices / Olives / Vrac', secteur: 'FRAIS' },
+  { id: 'electromenager', name: 'Electromenager', secteur: 'PGC' },
   { id: 'textile_pgc', name: 'Textile / Literie / PGC', secteur: 'PGC' },
   { id: 'apls_frais_ls', name: 'Libre Service Frais (APLS)', secteur: 'PGC' },
-  { id: 'rayon_pgc_ruptures', name: 'Rayon PGC - Produits Imposés', secteur: 'PGC' },
+  { id: 'rayon_pgc_ruptures', name: 'Rayon PGC - Produits Imposes', secteur: 'PGC' },
   { id: 'confort_environnement', name: 'Confort & Environnement', secteur: 'SUPPORT' },
-  { id: 'securite', name: 'Sécurité', secteur: 'SUPPORT' },
+  { id: 'securite', name: 'Securite', secteur: 'SUPPORT' },
   { id: 'caisses', name: 'Caisses', secteur: 'SUPPORT' },
 ] as const;
 
-// ---------- LIBELLÉS DES CIRCUITS (pour Dashboard + PDF) ----------
+/**
+ * Retourne le secteur (FRAIS/PGC/SUPPORT) auquel appartient un rayon donne.
+ */
+export function getSectorForDepartment(departmentId: string): string | undefined {
+  const dept = DEPARTMENTS.find((d) => d.id === departmentId);
+  return dept?.secteur;
+}
+
+// ---------- LIBELLES DES CIRCUITS (pour Dashboard + PDF) ----------
 export const CIRCUIT_TITLES: Record<string, string> = {
-  'circuit-1-confort': 'Circuit 1 — Confort',
-  'circuit-2-boucherie': 'Circuit 2 — SBAM Boucherie',
-  'circuit-2-fromage-charcuterie': 'Circuit 2 — SBAM Fromage/Charcuterie',
-  'circuit-2-boulangerie': 'Circuit 2 — SBAM Boulangerie',
-  'circuit-2-poissonnerie': 'Circuit 2 — SBAM Poissonnerie',
-  'circuit-2-traiteur': 'Circuit 2 — SBAM Traiteur',
-  'circuit-2-fruits-legumes': 'Circuit 2 — SBAM Fruits/Légumes',
-  'circuit-2-epices-vrac': 'Circuit 2 — SBAM Épices/Vrac',
-  'circuit-2-electromenager': 'Circuit 2 — SBAM Electroménager',
-  'circuit-2-textile-pgc': 'Circuit 2 — SBAM Textile/PGC',
-  'circuit-3-pnd-haccp': 'Circuit 3 — PND HACCP',
-  'circuit-4-libre-service': 'Circuit 4 — Libre Service/Ruptures',
-  'circuit-5-caisses': 'Circuit 5 — Caisses',
+  'circuit-1-confort': 'Circuit 1 - Confort',
+  'circuit-2-boucherie': 'Circuit 2 - SBAM Boucherie',
+  'circuit-2-fromage-charcuterie': 'Circuit 2 - SBAM Fromage/Charcuterie',
+  'circuit-2-boulangerie': 'Circuit 2 - SBAM Boulangerie',
+  'circuit-2-poissonnerie': 'Circuit 2 - SBAM Poissonnerie',
+  'circuit-2-traiteur': 'Circuit 2 - SBAM Traiteur',
+  'circuit-2-fruits-legumes': 'Circuit 2 - SBAM Fruits/Legumes',
+  'circuit-2-epices-vrac': 'Circuit 2 - SBAM Epices/Vrac',
+  'circuit-2-electromenager': 'Circuit 2 - SBAM Electromenager',
+  'circuit-2-textile-pgc': 'Circuit 2 - SBAM Textile/PGC',
+  'circuit-3-pnd-haccp': 'Circuit 3 - PND HACCP',
+  'circuit-4-libre-service': 'Circuit 4 - Libre Service/Ruptures',
+  'circuit-5-caisses': 'Circuit 5 - Caisses',
 };
 
-// ---------- LIBELLÉS DES PILIERS (regroupement PDF, Circuit 7) ----------
+// ---------- LIBELLES DES PILIERS ----------
 export const PILIER_LABELS_BY_CIRCUIT_NUMBER: Record<number, string> = {
-  1: 'PILIER 01 — Confort et Environnement Client',
-  2: 'PILIER 02 — Service Client SBAM',
-  3: 'HYGIÈNE, NETTOYAGE ET DÉSINFECTION — PND HACCP (transversal)',
-  4: 'PILIER 03 — Libre Service et Ruptures',
-  5: 'PILIER 04 — Caisses',
+  1: 'PILIER 01 - Confort et Environnement Client',
+  2: 'PILIER 02 - Service Client SBAM',
+  3: 'HYGIENE, NETTOYAGE ET DESINFECTION - PND HACCP (transversal)',
+  4: 'PILIER 03 - Libre Service et Ruptures',
+  5: 'PILIER 04 - Caisses',
 };
 
-// ---------- HIÉRARCHIE DES RÔLES (Circuit 9) ----------
-// Rang plus élevé = plus d'autorité. Utilisé pour la validation des NC.
+// ---------- HIERARCHIE DES ROLES (Circuit 9) ----------
 export const ROLE_RANK: Record<UserRole, number> = {
   EMPLOYE: 0,
   ASJ: 0,
@@ -191,24 +216,21 @@ export const ROLE_RANK: Record<UserRole, number> = {
   CHEF_RAYON: 1,
   CHEF_DEPARTEMENT: 2,
   CHEF_SECTEUR: 3,
-  SUPERVISEUR: 0, // lecture seule, ne participe pas à la validation
+  SUPERVISEUR: 0,
   ADMIN: 4,
 };
 
-// Rang minimum requis pour QUALIFIER une NC (créer la CAPA), selon la gravité
-// Conforme au Circuit 9 : Chef Département valide les NC Majeures de son département.
 export const GRAVITE_MIN_RANK_QUALIFICATION: Record<Gravite, number> = {
-  MINEURE: ROLE_RANK.CHEF_RAYON, // 1
-  MAJEURE: ROLE_RANK.CHEF_DEPARTEMENT, // 2
-  CRITIQUE: ROLE_RANK.ADMIN, // 4
+  MINEURE: ROLE_RANK.CHEF_RAYON,
+  MAJEURE: ROLE_RANK.CHEF_DEPARTEMENT,
+  CRITIQUE: ROLE_RANK.ADMIN,
 };
 
 export function canQualifyNC(role: UserRole, gravite: Gravite): boolean {
-  if (role === ROLES.SUPERVISEUR) return false; // lecture seule
+  if (role === ROLES.SUPERVISEUR) return false;
   return ROLE_RANK[role] >= GRAVITE_MIN_RANK_QUALIFICATION[gravite];
 }
 
-// Vérification & clôture : réservé au QHSE (Admin), Circuit 6 étape 6
 export function canVerifyAndCloseNC(role: UserRole): boolean {
   return role === ROLES.ADMIN;
 }
