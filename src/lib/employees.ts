@@ -1,6 +1,6 @@
 // ============================================================
-// HyperExcellence - Gestion des employés (côté app React)
-// Création via Appwrite Function sécurisée, lecture/modification directe.
+// HyperExcellence - Gestion des employes (cote app React)
+// Creation via Appwrite Function securisee, lecture/modification directe.
 // ============================================================
 import { Client, Functions, Query } from 'appwrite';
 import { databases, APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } from './appwrite';
@@ -61,18 +61,16 @@ export interface UpdateEmployeeInput {
   fullName?: string;
   role?: UserRole;
   departmentId?: string | null;
+  sector?: string | null;
   isActive?: boolean;
 }
 
-/**
- * Met à jour le profil d'un employé (nom, rôle, rayon, statut actif).
- * Ne touche pas au compte Auth (badge/PIN) — voir resetEmployeePin pour ça.
- */
 export async function updateEmployee(profileId: string, input: UpdateEmployeeInput) {
   const payload: Record<string, unknown> = {};
   if (input.fullName !== undefined) payload.full_name = input.fullName;
   if (input.role !== undefined) payload.role = input.role;
   if (input.departmentId !== undefined) payload.department_id = input.departmentId || null;
+  if (input.sector !== undefined) payload.sector = input.sector || null;
   if (input.isActive !== undefined) payload.is_active = input.isActive;
 
   return databases.updateDocument(
@@ -83,16 +81,10 @@ export async function updateEmployee(profileId: string, input: UpdateEmployeeInp
   );
 }
 
-/**
- * Désactive un employé (badge bloqué, historique conservé).
- */
 export async function deactivateEmployee(profileId: string) {
   return updateEmployee(profileId, { isActive: false });
 }
 
-/**
- * Réactive un employé précédemment désactivé.
- */
 export async function reactivateEmployee(profileId: string) {
   return updateEmployee(profileId, { isActive: true });
 }
