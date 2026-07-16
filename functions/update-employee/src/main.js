@@ -1,6 +1,6 @@
 // ============================================================
 // HyperExcellence - Appwrite Function : modification d'employe
-// + Garde-fou de connexion (fusionne pour rester sous la limite
+// + Garde-fou de connexion (fusionne pour rester sous la limite que
 // de 2 Functions du plan gratuit Appwrite).
 //
 // Deux familles d'actions distinguees par la presence de "action":
@@ -23,6 +23,7 @@ export default async ({ req, res, log, error }) => {
 
   try {
     const body = JSON.parse(req.bodyRaw || '{}');
+    log('BODY RECU: ' + JSON.stringify(body));
 
     // ---------- Branche garde-fou PIN (pas d'auth requise) ----------
     if (body.action === 'check' || body.action === 'fail' || body.action === 'reset') {
