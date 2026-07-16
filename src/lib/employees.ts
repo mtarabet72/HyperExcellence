@@ -1,12 +1,13 @@
 // ============================================================
 // HyperExcellence - Gestion des employes (cote app React)
-// Creation via Appwrite Function securisee, lecture/modification directe.
+// Creation ET modification via Appwrite Functions securisees.
 // ============================================================
 import { Client, Functions, Query } from 'appwrite';
 import { databases, APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, UserRole } from '../constants';
 
 const CREATE_EMPLOYEE_FUNCTION_ID = '6a55f8300015cb446152';
+const UPDATE_EMPLOYEE_FUNCTION_ID = '6a592c6000074266e563';
 
 const client = new Client()
   .setEndpoint(APPWRITE_ENDPOINT)
@@ -65,20 +66,22 @@ export interface UpdateEmployeeInput {
   isActive?: boolean;
 }
 
+/**
+ * Met a jour le profil d'un employe via une Appwrite Function securisee
+ * (verifie cote serveur que l'appelant est ADMIN avant toute modification).
+ */
 export async function updateEmployee(profileId: string, input: UpdateEmployeeInput) {
-  const payload: Record<string, unknown> = {};
-  if (input.fullName !== undefined) payload.full_name = input.fullName;
-  if (input.role !== undefined) payload.role = input.role;
-  if (input.departmentId !== undefined) payload.department_id = input.departmentId || null;
-  if (input.sector !== undefined) payload.sector = input.sector || null;
-  if (input.isActive !== undefined) payload.is_active = input.isActive;
-
-  return databases.updateDocument(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.PROFILES,
-    profileId,
-    payload
+  const execution = await functions.createExecution(
+    UPDATE_EMPLOYEE_FUNCTION_ID,
+    JSON.stringify({ profileId, ...input }),
+    false
   );
+
+  const result = JSON.parse(execution.responseBody);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }
 
 export async function deactivateEmployee(profileId: string) {
