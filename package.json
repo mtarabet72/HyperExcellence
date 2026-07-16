@@ -41,7 +41,8 @@
     "translate:circuit3": "node scripts/appwrite-translate-circuit3.mjs",
     "translate:circuit5": "node scripts/appwrite-translate-circuit5.mjs",
     "translate:circuit4": "node scripts/appwrite-translate-circuit4.mjs",
-    "translate:circuit2-boucherie": "node scripts/appwrite-translate-circuit2-boucherie.mjs"
+    "translate:circuit2-boucherie": "node scripts/appwrite-translate-circuit2-boucherie.mjs",
+    "translate:circuit2-fromage": "node scripts/appwrite-translate-circuit2-fromage.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
