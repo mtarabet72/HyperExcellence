@@ -1,26 +1,70 @@
-name: Translate Circuit 2 Traiteur
-
-on:
-  workflow_dispatch:
-
-jobs:
-  translate-circuit2-traiteur:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout du code
-        uses: actions/checkout@v4
-
-      - name: Installation de Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Installation des dependances
-        run: npm install
-
-      - name: Traduction Circuit 2 Traiteur
-        run: npm run translate:circuit2-traiteur
-        env:
-          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
-          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
+{
+  "name": "hyperexcellence",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "provision": "node scripts/appwrite-setup.mjs",
+    "provision:teams": "node scripts/appwrite-teams.mjs",
+    "seed:admin": "node scripts/appwrite-seed-admin.mjs",
+    "seed:circuit1": "node scripts/appwrite-seed-circuit1.mjs",
+    "seed:zone1": "node scripts/appwrite-seed-zone1.mjs",
+    "seed:circuit5": "node scripts/appwrite-seed-circuit5.mjs",
+    "seed:zone-caisses": "node scripts/appwrite-seed-zone-caisses.mjs",
+    "seed:circuit4": "node scripts/appwrite-seed-circuit4.mjs",
+    "seed:zone-apls": "node scripts/appwrite-seed-zone-apls.mjs",
+    "seed:circuit3": "node scripts/appwrite-seed-circuit3.mjs",
+    "seed:zone-pnd": "node scripts/appwrite-seed-zone-pnd.mjs",
+    "seed:circuit2-boucherie": "node scripts/appwrite-seed-circuit2-boucherie.mjs",
+    "seed:zone-boucherie": "node scripts/appwrite-seed-zone-boucherie.mjs",
+    "seed:circuit2-fromage": "node scripts/appwrite-seed-circuit2-fromage.mjs",
+    "seed:zone-fromage": "node scripts/appwrite-seed-zone-fromage.mjs",
+    "seed:circuit2-boulangerie": "node scripts/appwrite-seed-circuit2-boulangerie.mjs",
+    "seed:zone-boulangerie": "node scripts/appwrite-seed-zone-boulangerie.mjs",
+    "seed:circuit2-poissonnerie": "node scripts/appwrite-seed-circuit2-poissonnerie.mjs",
+    "seed:zone-poissonnerie": "node scripts/appwrite-seed-zone-poissonnerie.mjs",
+    "seed:circuit2-traiteur": "node scripts/appwrite-seed-circuit2-traiteur.mjs",
+    "seed:zone-traiteur": "node scripts/appwrite-seed-zone-traiteur.mjs",
+    "seed:circuit2-fruits-legumes": "node scripts/appwrite-seed-circuit2-fruits-legumes.mjs",
+    "seed:zone-fruits-legumes": "node scripts/appwrite-seed-zone-fruits-legumes.mjs",
+    "seed:circuit2-epices": "node scripts/appwrite-seed-circuit2-epices.mjs",
+    "seed:zone-epices": "node scripts/appwrite-seed-zone-epices.mjs",
+    "seed:circuit2-electromenager": "node scripts/appwrite-seed-circuit2-electromenager.mjs",
+    "seed:zone-electromenager": "node scripts/appwrite-seed-zone-electromenager.mjs",
+    "seed:circuit2-textile": "node scripts/appwrite-seed-circuit2-textile.mjs",
+    "seed:zone-textile": "node scripts/appwrite-seed-zone-textile.mjs",
+    "purge:test-data": "node scripts/appwrite-purge-test-data.mjs",
+    "translate:circuit1": "node scripts/appwrite-translate-circuit1.mjs",
+    "translate:circuit3": "node scripts/appwrite-translate-circuit3.mjs",
+    "translate:circuit5": "node scripts/appwrite-translate-circuit5.mjs",
+    "translate:circuit4": "node scripts/appwrite-translate-circuit4.mjs",
+    "translate:circuit2-boucherie": "node scripts/appwrite-translate-circuit2-boucherie.mjs",
+    "translate:circuit2-fromage": "node scripts/appwrite-translate-circuit2-fromage.mjs",
+    "translate:circuit2-boulangerie": "node scripts/appwrite-translate-circuit2-boulangerie.mjs",
+    "translate:circuit2-poissonnerie": "node scripts/appwrite-translate-circuit2-poissonnerie.mjs",
+    "translate:circuit2-traiteur": "node scripts/appwrite-translate-circuit2-traiteur.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "appwrite": "^16.0.2",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
+    "dexie": "^4.0.10",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "tailwindcss": "^3.4.14",
+    "postcss": "^8.4.47",
+    "autoprefixer": "^10.4.20",
+    "node-appwrite": "^14.0.0"
+  }
+}
