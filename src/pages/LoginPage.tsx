@@ -1,9 +1,10 @@
 // ============================================================
-// HyperExcellence - Ecran de connexion Badge + PIN (bilingue)
+// HyperExcellence - Ecran de connexion Badge + PIN (bilingue, securise)
 // ============================================================
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { AccountLockedError } from '../lib/auth';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -25,8 +26,16 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(badgeNumber, pin);
-    } catch {
-      setError(t('loginError'));
+    } catch (err) {
+      if (err instanceof AccountLockedError) {
+        setError(
+          language === 'ar'
+            ? `الحساب محظور مؤقتا. حاولوا مرة أخرى بعد ${err.minutesLeft} دقيقة.`
+            : `Compte temporairement bloqué. Réessayez dans ${err.minutesLeft} minute(s).`
+        );
+      } else {
+        setError(t('loginError'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -35,7 +44,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
-        {/* ---------- Selecteur de langue ---------- */}
         <div className="flex justify-center gap-2">
           <button
             onClick={() => setLanguage('fr')}
