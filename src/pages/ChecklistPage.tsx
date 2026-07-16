@@ -1,5 +1,5 @@
 // ============================================================
-// HyperExcellence - Ecran Checklist (multi-circuits, photos, offline, bilingue)
+// HyperExcellence - Ecran Checklist (multi-circuits, secteurs, offline, bilingue)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
 import { getTasksForChecklist, submitTaskExecution, TaskTemplate } from '../lib/tasks';
@@ -7,7 +7,13 @@ import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
 import { offlineDb, generateOfflineId } from '../lib/offlineDb';
 import { syncPendingData, countPending } from '../lib/offlineSync';
-import { TaskStatus, GRAVITE_COLORS, ROLES } from '../constants';
+import {
+  TaskStatus,
+  GRAVITE_COLORS,
+  ROLES,
+  ROLES_SECTOR_WIDE,
+  getSectorForDepartment,
+} from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -115,22 +121,31 @@ const CIRCUITS: CircuitOption[] = [
   },
 ];
 
-const ROLES_TRANSVERSAUX: string[] = [ROLES.ADMIN, ROLES.CHEF_SECTEUR];
+const ROLES_FULLY_TRANSVERSAL: string[] = [ROLES.ADMIN];
 const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
 
 export default function ChecklistPage() {
   const { profile } = useAuth();
   const { t, language } = useLanguage();
 
-  const visibleCircuits = !profile
-    ? []
-    : ROLES_TRANSVERSAUX.includes(profile.role)
-    ? CIRCUITS
-    : CIRCUITS.filter(
-        (c) =>
-          c.departmentId === profile.department_id ||
-          (c.transversal && ROLES_ACCES_TRANSVERSAL.includes(profile.role))
-      );
+  const visibleCircuits = (() => {
+    if (!profile) return [];
+
+    // Admin : acces total, tous secteurs
+    if (ROLES_FULLY_TRANSVERSAL.includes(profile.role)) return CIRCUITS;
+
+    // Chef de Departement / Chef de Secteur : tous les circuits de leur secteur assigne
+    if (ROLES_SECTOR_WIDE.includes(profile.role as any) && profile.sector) {
+      return CIRCUITS.filter((c) => getSectorForDepartment(c.departmentId) === profile.sector);
+    }
+
+    // Autres roles : circuit de leur rayon, + circuits transversaux si role concerne (Maitre Metier)
+    return CIRCUITS.filter(
+      (c) =>
+        c.departmentId === profile.department_id ||
+        (c.transversal && ROLES_ACCES_TRANSVERSAL.includes(profile.role))
+    );
+  })();
 
   const [selectedCircuit, setSelectedCircuit] = useState<CircuitOption | null>(
     visibleCircuits[0] || null
