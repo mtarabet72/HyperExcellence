@@ -1,0 +1,26 @@
+name: Translate Circuit 2 Epices
+
+on:
+  workflow_dispatch:
+
+jobs:
+  translate-circuit2-epices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installation des dependances
+        run: npm install
+
+      - name: Traduction Circuit 2 Epices
+        run: npm run translate:circuit2-epices
+        env:
+          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
