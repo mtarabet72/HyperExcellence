@@ -22,7 +22,9 @@ interface CircuitOption {
   zoneId: string;
   departmentId: string;
   title: string;
+  titleAr: string;
   subtitle: string;
+  subtitleAr: string;
   transversal?: boolean;
 }
 
@@ -32,14 +34,18 @@ const CIRCUITS: CircuitOption[] = [
     zoneId: '6a561bea002454e03375',
     departmentId: 'confort_environnement',
     title: 'Circuit 1 — Confort & Environnement',
+    titleAr: 'المسار 1 - الراحة والبيئة',
     subtitle: 'Parking & Entrée principale',
+    subtitleAr: 'الموقف والمدخل الرئيسي',
   },
   {
     checklistId: 'circuit-3-pnd-haccp',
     zoneId: '6a56a89e0038906c0f21',
     departmentId: 'boucherie',
     title: 'Circuit 3 — PND HACCP',
+    titleAr: 'المسار 3 - التنظيف والتطهير',
     subtitle: 'Nettoyage & Désinfection (rayons frais)',
+    subtitleAr: 'التنظيف والتطهير (الأرفف الطازجة)',
     transversal: true,
   },
   {
@@ -47,77 +53,99 @@ const CIRCUITS: CircuitOption[] = [
     zoneId: '6a56b03900331e1574ac',
     departmentId: 'boucherie',
     title: 'Circuit 2 — Service SBAM Boucherie',
+    titleAr: 'المسار 2 - خدمة اللحوم',
     subtitle: 'Rayon Boucherie / Volaille',
+    subtitleAr: 'رف اللحوم / الدواجن',
   },
   {
     checklistId: 'circuit-2-fromage-charcuterie',
     zoneId: '6a56b4120021076ed72b',
     departmentId: 'fromage_charcuterie',
     title: 'Circuit 2 — Service SBAM Fromage/Charcuterie',
+    titleAr: 'المسار 2 - خدمة الجبن والمقبلات',
     subtitle: 'Rayon Fromage / Charcuterie à la coupe',
+    subtitleAr: 'رف الجبن والمقبلات بالقطع',
   },
   {
     checklistId: 'circuit-2-boulangerie',
     zoneId: '6a56b76b000f36d15a90',
     departmentId: 'boulangerie',
     title: 'Circuit 2 — Service SBAM Boulangerie',
+    titleAr: 'المسار 2 - خدمة المخبزة',
     subtitle: 'Rayon Boulangerie / Pâtisserie',
+    subtitleAr: 'رف المخبزة / الحلويات',
   },
   {
     checklistId: 'circuit-2-poissonnerie',
     zoneId: '6a56be96001436a1c2ee',
     departmentId: 'poissonnerie',
     title: 'Circuit 2 — Service SBAM Poissonnerie',
+    titleAr: 'المسار 2 - خدمة السمك',
     subtitle: 'Rayon Poissonnerie',
+    subtitleAr: 'رف السمك',
   },
   {
     checklistId: 'circuit-2-traiteur',
     zoneId: '6a57199f0029e2061a01',
     departmentId: 'traiteur',
     title: 'Circuit 2 — Service SBAM Traiteur',
+    titleAr: 'المسار 2 - خدمة الطعام الجاهز',
     subtitle: 'Rayon Traiteur',
+    subtitleAr: 'رف الطعام الجاهز',
   },
   {
     checklistId: 'circuit-2-fruits-legumes',
     zoneId: '6a571ca000276c6485cf',
     departmentId: 'fruits_legumes',
     title: 'Circuit 2 — Service SBAM Fruits et Légumes',
+    titleAr: 'المسار 2 - خدمة الفواكه والخضر',
     subtitle: 'Rayon Fruits et Légumes',
+    subtitleAr: 'رف الفواكه والخضر',
   },
   {
     checklistId: 'circuit-2-epices-vrac',
     zoneId: '6a57203200048282d2d1',
     departmentId: 'epices_vrac',
     title: 'Circuit 2 — Service SBAM Épices/Vrac',
+    titleAr: 'المسار 2 - خدمة التوابل',
     subtitle: 'Rayon Épices / Olives / Vrac',
+    subtitleAr: 'رف التوابل / الزيتون / السائب',
   },
   {
     checklistId: 'circuit-2-electromenager',
     zoneId: '6a575b18002dbaf4fd24',
     departmentId: 'electromenager',
     title: 'Circuit 2 — Service SBAM Electroménager',
+    titleAr: 'المسار 2 - خدمة الأجهزة المنزلية',
     subtitle: 'Rayon Electroménager',
+    subtitleAr: 'رف الأجهزة المنزلية',
   },
   {
     checklistId: 'circuit-2-textile-pgc',
     zoneId: '6a575d4f0019d803ff56',
     departmentId: 'textile_pgc',
     title: 'Circuit 2 — Service SBAM Textile/PGC',
+    titleAr: 'المسار 2 - خدمة النسيج',
     subtitle: 'Rayon Textile / Literie / PGC',
+    subtitleAr: 'رف النسيج / الفراش',
   },
   {
     checklistId: 'circuit-4-libre-service',
     zoneId: '6a569fc40029a16ed2b6',
     departmentId: 'apls_frais_ls',
     title: 'Circuit 4 — Libre Service & Ruptures',
+    titleAr: 'المسار 4 - الخدمة الذاتية',
     subtitle: 'Libre Service Frais',
+    subtitleAr: 'الخدمة الذاتية الطازجة',
   },
   {
     checklistId: 'circuit-5-caisses',
     zoneId: '6a565b970008bdf42a6b',
     departmentId: 'caisses',
     title: 'Circuit 5 — Caisses',
+    titleAr: 'المسار 5 - الصناديق',
     subtitle: 'Ligne de caisses principale',
+    subtitleAr: 'خط الصناديق الرئيسي',
   },
 ];
 
@@ -131,15 +159,12 @@ export default function ChecklistPage() {
   const visibleCircuits = (() => {
     if (!profile) return [];
 
-    // Admin : acces total, tous secteurs
     if (ROLES_FULLY_TRANSVERSAL.includes(profile.role)) return CIRCUITS;
 
-    // Chef de Departement / Chef de Secteur : tous les circuits de leur secteur assigne
     if (ROLES_SECTOR_WIDE.includes(profile.role as any) && profile.sector) {
       return CIRCUITS.filter((c) => getSectorForDepartment(c.departmentId) === profile.sector);
     }
 
-    // Autres roles : circuit de leur rayon, + circuits transversaux si role concerne (Maitre Metier)
     return CIRCUITS.filter(
       (c) =>
         c.departmentId === profile.department_id ||
@@ -173,6 +198,13 @@ export default function ChecklistPage() {
     ECART: t('status_ECART' as any),
     NON_APPLICABLE: t('status_NON_APPLICABLE' as any),
   };
+
+  function circuitTitle(c: CircuitOption) {
+    return language === 'ar' ? c.titleAr : c.title;
+  }
+  function circuitSubtitle(c: CircuitOption) {
+    return language === 'ar' ? c.subtitleAr : c.subtitle;
+  }
 
   async function refreshPendingCount() {
     setPendingCount(await countPending());
@@ -368,7 +400,7 @@ export default function ChecklistPage() {
             >
               {visibleCircuits.map((c) => (
                 <option key={c.checklistId} value={c.checklistId}>
-                  {c.title}
+                  {circuitTitle(c)}
                 </option>
               ))}
             </select>
@@ -377,9 +409,9 @@ export default function ChecklistPage() {
 
         {selectedCircuit && (
           <div>
-            <h1 className="text-xl font-bold">{selectedCircuit.title}</h1>
+            <h1 className="text-xl font-bold">{circuitTitle(selectedCircuit)}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              {selectedCircuit.subtitle} · {doneCount}/{tasks.length} {t('tasksLabel' as any)}
+              {circuitSubtitle(selectedCircuit)} · {doneCount}/{tasks.length} {t('tasksLabel' as any)}
             </p>
             <div className="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
               <div
