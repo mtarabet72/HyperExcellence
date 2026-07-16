@@ -46,7 +46,8 @@
     "translate:circuit2-boulangerie": "node scripts/appwrite-translate-circuit2-boulangerie.mjs",
     "translate:circuit2-poissonnerie": "node scripts/appwrite-translate-circuit2-poissonnerie.mjs",
     "translate:circuit2-traiteur": "node scripts/appwrite-translate-circuit2-traiteur.mjs",
-    "translate:circuit2-fruits-legumes": "node scripts/appwrite-translate-circuit2-fruits-legumes.mjs"
+    "translate:circuit2-fruits-legumes": "node scripts/appwrite-translate-circuit2-fruits-legumes.mjs",
+    "translate:circuit2-epices": "node scripts/appwrite-translate-circuit2-epices.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
