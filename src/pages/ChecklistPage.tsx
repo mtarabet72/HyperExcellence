@@ -1,7 +1,9 @@
 // ============================================================
 // HyperExcellence - Ecran Checklist (multi-circuits, secteurs, offline, bilingue)
+// Chargement des taches converti a TanStack Query (Phase 1)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getTasksForChecklist, submitTaskExecution, TaskTemplate } from '../lib/tasks';
 import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
@@ -158,13 +160,10 @@ export default function ChecklistPage() {
 
   const visibleCircuits = (() => {
     if (!profile) return [];
-
     if (ROLES_FULLY_TRANSVERSAL.includes(profile.role)) return CIRCUITS;
-
     if (ROLES_SECTOR_WIDE.includes(profile.role as any) && profile.sector) {
       return CIRCUITS.filter((c) => getSectorForDepartment(c.departmentId) === profile.sector);
     }
-
     return CIRCUITS.filter(
       (c) =>
         c.departmentId === profile.department_id ||
@@ -175,8 +174,15 @@ export default function ChecklistPage() {
   const [selectedCircuit, setSelectedCircuit] = useState<CircuitOption | null>(
     visibleCircuits[0] || null
   );
-  const [tasks, setTasks] = useState<TaskTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // ---------- Chargement des taches via TanStack Query ----------
+  const { data: tasks = [], isLoading } = useQuery({
+    queryKey: ['tasks', selectedCircuit?.checklistId],
+    queryFn: () => getTasksForChecklist(selectedCircuit!.checklistId),
+    enabled: !!selectedCircuit,
+    staleTime: 5 * 60 * 1000, // 5 min : les taches d'un circuit changent rarement
+  });
+
   const [completed, setCompleted] = useState<Record<string, TaskStatus>>({});
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
@@ -240,20 +246,12 @@ export default function ChecklistPage() {
     };
   }, []);
 
+  // Reinitialise l'etat local (coche/photos) a chaque changement de circuit
   useEffect(() => {
-    if (!selectedCircuit) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
     setCompleted({});
     setPhotoUrls({});
     setPhotoBlobs({});
-    getTasksForChecklist(selectedCircuit.checklistId).then((list) => {
-      setTasks(list);
-      setIsLoading(false);
-    });
-  }, [selectedCircuit]);
+  }, [selectedCircuit?.checklistId]);
 
   async function handlePhotoSelected(task: TaskTemplate, e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
