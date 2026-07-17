@@ -46,7 +46,6 @@ export class AccountLockedError extends Error {
 export async function loginWithBadge(badgeNumber: string, pin: string) {
   // 1. Verifie que le compte n'est pas bloque avant de tenter quoi que ce soit
   const checkResult = await callGuard(badgeNumber, 'check');
-  alert('DEBUG check: ' + JSON.stringify(checkResult));
   if (checkResult.allowed === false) {
     throw new AccountLockedError(checkResult.minutesLeft || 15);
   }
