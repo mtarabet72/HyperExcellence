@@ -1,11 +1,12 @@
 // ============================================================
 // HyperExcellence - Suivi NC + CAPA (Circuit 6, workflow complet)
-// Validation hiérarchique par palier (Circuit 9)
+// Converti a TanStack Query (Phase 1 - Performance)
 // ============================================================
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { listOpenNonConformites, NonConformite } from '../lib/nonConformites';
 import { qualifyAndCreateCapa, verifyAndCloseCapa, getCapaForNC, Capa } from '../lib/capa';
-import { listEmployees, Profile } from '../lib/employees';
+import { listEmployees } from '../lib/employees';
 import {
   GRAVITE_LABELS,
   GRAVITE_COLORS,
@@ -16,12 +17,46 @@ import {
 } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 
+async function fetchNCData() {
+  const [list, emps] = await Promise.all([listOpenNonConformites(), listEmployees()]);
+
+  const capaByNC: Record<string, Capa> = {};
+  for (const nc of list) {
+    if (nc.status === 'EN_COURS') {
+      const capa = await getCapaForNC(nc.$id);
+      if (capa) capaByNC[nc.$id] = capa;
+    }
+  }
+
+  return { ncList: list, employees: emps, capaByNC };
+}
+
 export default function NonConformitesPage() {
   const { profile } = useAuth();
-  const [ncList, setNcList] = useState<NonConformite[]>([]);
-  const [employees, setEmployees] = useState<Profile[]>([]);
-  const [capaByNC, setCapaByNC] = useState<Record<string, Capa>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['non-conformites'],
+    queryFn: fetchNCData,
+  });
+
+  const ncList = data?.ncList || [];
+  const employees = data?.employees || [];
+  const capaByNC = data?.capaByNC || {};
+
+  const qualifyMutation = useMutation({
+    mutationFn: qualifyAndCreateCapa,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['non-conformites'] });
+    },
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: verifyAndCloseCapa,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['non-conformites'] });
+    },
+  });
 
   const [qualifyingId, setQualifyingId] = useState<string | null>(null);
   const [causeRacine, setCauseRacine] = useState('');
@@ -32,38 +67,14 @@ export default function NonConformitesPage() {
   const [preuveCorrection, setPreuveCorrection] = useState('');
   const [signatureName, setSignatureName] = useState('');
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function load() {
-    setIsLoading(true);
-    const [list, emps] = await Promise.all([listOpenNonConformites(), listEmployees()]);
-    setNcList(list);
-    setEmployees(emps);
-
-    const capaEntries: Record<string, Capa> = {};
-    for (const nc of list) {
-      if (nc.status === 'EN_COURS') {
-        const capa = await getCapaForNC(nc.$id);
-        if (capa) capaEntries[nc.$id] = capa;
-      }
-    }
-    setCapaByNC(capaEntries);
-    setIsLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
   async function handleQualify(nc: NonConformite) {
     if (!profile) return;
     if (!causeRacine.trim() || !responsableId || !echeance) {
       alert('Tous les champs sont requis.');
       return;
     }
-    setIsSubmitting(true);
     try {
-      await qualifyAndCreateCapa({
+      await qualifyMutation.mutateAsync({
         ncId: nc.$id,
         causeRacine: causeRacine.trim(),
         responsableId,
@@ -74,11 +85,8 @@ export default function NonConformitesPage() {
       setCauseRacine('');
       setResponsableId('');
       setEcheance('');
-      await load();
     } catch {
       alert('Erreur lors de la qualification.');
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -90,9 +98,8 @@ export default function NonConformitesPage() {
       alert('Preuve de correction et signature requises.');
       return;
     }
-    setIsSubmitting(true);
     try {
-      await verifyAndCloseCapa({
+      await verifyMutation.mutateAsync({
         capaId: capa.$id,
         ncId: nc.$id,
         preuveCorrection: preuveCorrection.trim(),
@@ -103,11 +110,8 @@ export default function NonConformitesPage() {
       setVerifyingId(null);
       setPreuveCorrection('');
       setSignatureName('');
-      await load();
     } catch {
-      alert('Erreur lors de la clôture.');
-    } finally {
-      setIsSubmitting(false);
+      alert('Erreur lors de la cloture.');
     }
   }
 
@@ -128,17 +132,18 @@ export default function NonConformitesPage() {
     };
     return map[gravite] || '—';
   }
+
   if (!profile) return null;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-xl mx-auto space-y-4">
-        <h1 className="text-xl font-bold">Non Conformités & CAPA</h1>
+        <h1 className="text-xl font-bold">Non Conformites & CAPA</h1>
 
         {isLoading ? (
           <p className="text-slate-500 text-sm">Chargement...</p>
         ) : ncList.length === 0 ? (
-          <p className="text-slate-500 text-sm">Aucune non conformité ouverte. 🎉</p>
+          <p className="text-slate-500 text-sm">Aucune non conformite ouverte.</p>
         ) : (
           <div className="space-y-3">
             {ncList.map((nc) => {
@@ -171,10 +176,9 @@ export default function NonConformitesPage() {
                     </span>
                   </div>
 
-                  {/* ---------- NC OUVERTE ---------- */}
                   {nc.status === 'OUVERTE' && !canQualify && (
                     <p className="text-xs text-slate-500 italic">
-                      🔒 Qualification réservée à : {minRoleLabelFor(nc.gravite)} ou supérieur.
+                      Qualification reservee a : {minRoleLabelFor(nc.gravite)} ou superieur.
                     </p>
                   )}
 
@@ -183,7 +187,7 @@ export default function NonConformitesPage() {
                       onClick={() => setQualifyingId(nc.$id)}
                       className="w-full rounded-lg bg-amber-500 text-slate-950 font-medium py-2 text-xs"
                     >
-                      Qualifier & créer CAPA
+                      Qualifier & creer CAPA
                     </button>
                   )}
 
@@ -193,7 +197,7 @@ export default function NonConformitesPage() {
                       <textarea
                         value={causeRacine}
                         onChange={(e) => setCauseRacine(e.target.value)}
-                        placeholder="Ex: Main d'œuvre — manque de formation SBAM"
+                        placeholder="Ex: Main d'oeuvre - manque de formation SBAM"
                         rows={2}
                         className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                       />
@@ -203,14 +207,14 @@ export default function NonConformitesPage() {
                         onChange={(e) => setResponsableId(e.target.value)}
                         className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                       >
-                        <option value="">— Sélectionner —</option>
+                        <option value="">— Selectionner —</option>
                         {employees.map((emp) => (
                           <option key={emp.$id} value={emp.$id}>
                             {emp.full_name}
                           </option>
                         ))}
                       </select>
-                      <p className="text-xs text-slate-400 font-medium">Échéance</p>
+                      <p className="text-xs text-slate-400 font-medium">Echeance</p>
                       <input
                         type="date"
                         value={echeance}
@@ -220,10 +224,10 @@ export default function NonConformitesPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleQualify(nc)}
-                          disabled={isSubmitting}
+                          disabled={qualifyMutation.isPending}
                           className="flex-1 rounded-lg bg-amber-500 text-slate-950 font-medium py-2 text-xs"
                         >
-                          {isSubmitting ? 'Enregistrement...' : 'Créer la CAPA'}
+                          {qualifyMutation.isPending ? 'Enregistrement...' : 'Creer la CAPA'}
                         </button>
                         <button
                           onClick={() => setQualifyingId(null)}
@@ -235,19 +239,18 @@ export default function NonConformitesPage() {
                     </div>
                   )}
 
-                  {/* ---------- NC EN_COURS ---------- */}
                   {nc.status === 'EN_COURS' && capaByNC[nc.$id] && (
                     <div className="bg-slate-950 border border-slate-700 rounded-lg p-3 space-y-2">
                       <p className="text-xs text-slate-400">
                         Responsable :{' '}
                         {employees.find((e) => e.$id === capaByNC[nc.$id].responsable_id)
                           ?.full_name || '—'}
-                        {' · '}Échéance : {capaByNC[nc.$id].echeance?.slice(0, 10)}
+                        {' · '}Echeance : {capaByNC[nc.$id].echeance?.slice(0, 10)}
                       </p>
 
                       {!canVerify && (
                         <p className="text-xs text-slate-500 italic">
-                          🔒 Vérification et clôture réservées au QHSE (Admin).
+                          Verification et cloture reservees au QHSE (Admin).
                         </p>
                       )}
 
@@ -256,7 +259,7 @@ export default function NonConformitesPage() {
                           onClick={() => setVerifyingId(nc.$id)}
                           className="w-full rounded-lg bg-emerald-500 text-slate-950 font-medium py-2 text-xs"
                         >
-                          Vérifier & clôturer
+                          Verifier & cloturer
                         </button>
                       )}
 
@@ -266,7 +269,7 @@ export default function NonConformitesPage() {
                           <textarea
                             value={preuveCorrection}
                             onChange={(e) => setPreuveCorrection(e.target.value)}
-                            placeholder="Ex: Formation SBAM réalisée le 15/07, contrôle terrain OK"
+                            placeholder="Ex: Formation SBAM realisee le 15/07, controle terrain OK"
                             rows={2}
                             className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                           />
@@ -277,16 +280,16 @@ export default function NonConformitesPage() {
                             type="text"
                             value={signatureName}
                             onChange={(e) => setSignatureName(e.target.value)}
-                            placeholder="Nom Prénom"
+                            placeholder="Nom Prenom"
                             className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                           />
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleVerify(nc)}
-                              disabled={isSubmitting}
+                              disabled={verifyMutation.isPending}
                               className="flex-1 rounded-lg bg-emerald-500 text-slate-950 font-medium py-2 text-xs"
                             >
-                              {isSubmitting ? 'Clôture...' : 'Confirmer la clôture'}
+                              {verifyMutation.isPending ? 'Cloture...' : 'Confirmer la cloture'}
                             </button>
                             <button
                               onClick={() => setVerifyingId(null)}
