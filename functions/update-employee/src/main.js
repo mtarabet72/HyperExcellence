@@ -1,7 +1,6 @@
 // ============================================================
 // HyperExcellence - Appwrite Function : modification d'employe
-// + Garde-fou de connexion (fusionne pour rester sous la limite
-// de 2 Functions du plan gratuit Appwrite).
+// + Garde-fou de connexion (fusionne, limite 2 Functions plan gratuit).
 // ============================================================
 import { Client, Databases, Query } from 'node-appwrite';
 
@@ -9,17 +8,15 @@ const DB_ID = 'hyperclean_pro';
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
-async function findProfileByBadge(databases, badgeNumber) {
-  // Recherche insensible a la casse : on recupere tous les profils avec
-  // badge_number renseigne et on compare en minuscules cote code.
-  const all = await databases.listDocuments(DB_ID, 'profiles', [
-    Query.isNotNull('badge_number'),
-    Query.limit(500),
-  ]);
+async function findProfileByBadge(databases, badgeNumber, log) {
+  const all = await databases.listDocuments(DB_ID, 'profiles', [Query.limit(500)]);
+  log('Total profils scannes: ' + all.documents.length);
   const target = badgeNumber.trim().toLowerCase();
-  return all.documents.find(
+  const found = all.documents.find(
     (p) => (p.badge_number || '').trim().toLowerCase() === target
   );
+  log('Recherche badge "' + target + '" -> ' + (found ? 'TROUVE ' + found.$id : 'NON TROUVE'));
+  return found;
 }
 
 export default async ({ req, res, log, error }) => {
@@ -34,17 +31,15 @@ export default async ({ req, res, log, error }) => {
     const body = JSON.parse(req.bodyRaw || '{}');
     log('BODY RECU: ' + JSON.stringify(body));
 
-    // ---------- Branche garde-fou PIN (pas d'auth requise) ----------
     if (body.action === 'check' || body.action === 'fail' || body.action === 'reset') {
       const { badgeNumber, action } = body;
       if (!badgeNumber) {
         return res.json({ error: 'badgeNumber manquant.' }, 400);
       }
 
-      const profile = await findProfileByBadge(databases, badgeNumber);
+      const profile = await findProfileByBadge(databases, badgeNumber, log);
 
       if (!profile) {
-        log('Aucun profil trouve pour badge: ' + badgeNumber);
         return res.json({ allowed: true });
       }
 
@@ -78,7 +73,6 @@ export default async ({ req, res, log, error }) => {
       }
     }
 
-    // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
       return res.json({ error: 'Non authentifie.' }, 401);
@@ -112,4 +106,4 @@ export default async ({ req, res, log, error }) => {
     error(e.message || String(e));
     return res.json({ error: e.message || 'Erreur inconnue.' }, 500);
   }
-}; AA
+};
