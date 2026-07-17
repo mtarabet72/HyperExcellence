@@ -1,13 +1,14 @@
 // ============================================================
 // HyperExcellence - Tableau de bord KPI Admin (Circuit 10)
-// Consultation de l'historique via sélecteur de date.
+// Converti a TanStack Query (Phase 1 - Performance)
 // ============================================================
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
-import { getDashboardStats, DashboardStats } from '../lib/kpi';
+import { getDashboardStats } from '../lib/kpi';
 import { generateDailyAuditPDF } from '../lib/pdfExport';
-import { listOverdueCapas, Capa } from '../lib/capa';
+import { listOverdueCapas } from '../lib/capa';
 import {
   APPWRITE_DATABASE_ID,
   COLLECTIONS,
@@ -16,75 +17,68 @@ import {
   CIRCUIT_TITLES,
 } from '../constants';
 
-interface OverdueCapaItem extends Capa {
-  ncGravite: string;
-  ncActionImmediate: string;
-}
-
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+async function fetchDashboardData(selectedDate: string) {
+  const [dashboardStats, zonesResult, profilesResult, overdue] = await Promise.all([
+    getDashboardStats(selectedDate),
+    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
+    databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
+    listOverdueCapas(),
+  ]);
+
+  const zoneNames: Record<string, string> = {};
+  for (const zone of zonesResult.documents as any[]) {
+    zoneNames[zone.$id] = zone.name;
+  }
+
+  const profileNames: Record<string, string> = {};
+  for (const p of profilesResult.documents as any[]) {
+    profileNames[p.$id] = p.full_name;
+  }
+
+  return { stats: dashboardStats, zoneNames, profileNames, overdueCapas: overdue };
+}
+
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(todayISO());
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
-  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
-  const [overdueCapas, setOverdueCapas] = useState<OverdueCapaItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
 
   const isToday = selectedDate === todayISO();
 
-  async function load() {
-    setIsLoading(true);
-    const [dashboardStats, zonesResult, profilesResult, overdue] = await Promise.all([
-      getDashboardStats(selectedDate),
-      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
-      databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
-      listOverdueCapas(),
-    ]);
-    setStats(dashboardStats);
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard', selectedDate],
+    queryFn: () => fetchDashboardData(selectedDate),
+    staleTime: 60 * 1000, // 1 min : le dashboard bouge plus vite que le reste
+  });
 
-    const zNames: Record<string, string> = {};
-    for (const zone of zonesResult.documents as any[]) {
-      zNames[zone.$id] = zone.name;
-    }
-    setZoneNames(zNames);
-
-    const pNames: Record<string, string> = {};
-    for (const p of profilesResult.documents as any[]) {
-      pNames[p.$id] = p.full_name;
-    }
-    setProfileNames(pNames);
-
-    setOverdueCapas(overdue);
-    setIsLoading(false);
+  function refresh() {
+    queryClient.invalidateQueries({ queryKey: ['dashboard', selectedDate] });
   }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
 
   async function handleExportPDF() {
     setIsExporting(true);
     try {
       await generateDailyAuditPDF(selectedDate);
     } catch {
-      alert('Erreur lors de la génération du PDF.');
+      alert('Erreur lors de la generation du PDF.');
     } finally {
       setIsExporting(false);
     }
   }
 
-  if (isLoading || !stats) {
+  if (isLoading || !data) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
         <p className="text-slate-400 text-sm">Chargement des KPI...</p>
       </div>
     );
   }
+
+  const { stats, zoneNames, profileNames, overdueCapas } = data;
 
   const conformiteColor =
     stats.tauxConformite >= 90
@@ -98,15 +92,14 @@ export default function DashboardPage() {
       <div className="max-w-xl mx-auto space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Tableau de bord</h1>
-          <button onClick={load} className="text-xs text-slate-400">
+          <button onClick={refresh} className="text-xs text-slate-400">
             Actualiser
           </button>
         </div>
 
-        {/* ---------- Sélecteur de date ---------- */}
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
           <label className="block text-xs text-slate-400 mb-1">
-            Consulter la journée du
+            Consulter la journee du
           </label>
           <div className="flex items-center gap-2">
             <input
@@ -121,7 +114,7 @@ export default function DashboardPage() {
                 onClick={() => setSelectedDate(todayISO())}
                 className="text-xs text-amber-400 whitespace-nowrap"
               >
-                Revenir à aujourd'hui
+                Revenir a aujourd'hui
               </button>
             )}
           </div>
@@ -133,7 +126,7 @@ export default function DashboardPage() {
           className="w-full rounded-lg bg-blue-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
         >
           {isExporting
-            ? 'Génération du PDF...'
+            ? 'Generation du PDF...'
             : `Exporter l'audit du ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')} (PDF)`}
         </button>
 
@@ -156,7 +149,7 @@ export default function DashboardPage() {
                       {GRAVITE_LABELS[c.ncGravite as keyof typeof GRAVITE_LABELS]}
                     </span>
                     <span className="text-xs text-red-400">
-                      Échéance : {c.echeance ? c.echeance.slice(0, 10) : '—'}
+                      Echeance : {c.echeance ? c.echeance.slice(0, 10) : '—'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-300 mt-1">{c.ncActionImmediate}</p>
@@ -171,14 +164,14 @@ export default function DashboardPage() {
 
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
           <p className="text-xs text-slate-400 mb-2">
-            Taux de conformité — {isToday ? "Aujourd'hui" : new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')}
+            Taux de conformite — {isToday ? "Aujourd'hui" : new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')}
           </p>
           <div className="flex items-end gap-2">
             <span className="text-4xl font-bold" style={{ color: conformiteColor }}>
               {stats.tauxConformite}%
             </span>
             <span className="text-xs text-slate-500 mb-1">
-              ({stats.faitToday}/{stats.totalExecutionsToday} tâches, dédoublonné)
+              ({stats.faitToday}/{stats.totalExecutionsToday} taches, dedoublonne)
             </span>
           </div>
           <div className="w-full h-2 bg-slate-800 rounded-full mt-3 overflow-hidden">
@@ -195,7 +188,7 @@ export default function DashboardPage() {
             <p className="text-xl font-bold text-blue-400">
               {stats.mttrHeures !== null ? `${stats.mttrHeures}h` : '—'}
             </p>
-            <p className="text-xs text-slate-500 mt-0.5">Temps moyen de clôture</p>
+            <p className="text-xs text-slate-500 mt-0.5">Temps moyen de cloture</p>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
             <p className="text-xs text-slate-400 mb-1">Taux rupture APLS</p>
@@ -209,7 +202,7 @@ export default function DashboardPage() {
         {stats.scoresSBAM.length > 0 && (
           <div>
             <h2 className="text-sm font-semibold text-slate-300 mb-2">
-              Classement SBAM {isToday ? 'du jour' : 'de la journée'}
+              Classement SBAM {isToday ? 'du jour' : 'de la journee'}
             </h2>
             <div className="space-y-2">
               {stats.scoresSBAM.map((v, i) => (
@@ -231,9 +224,10 @@ export default function DashboardPage() {
 
         {stats.parCircuit.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-slate-300 mb-2">Détail par circuit</h2>
+            <h2 className="text-sm font-semibold text-slate-300 mb-2">Detail par circuit</h2>
             <div className="space-y-2">
               {stats.parCircuit
+                .slice()
                 .sort((a, b) => a.tauxConformite - b.tauxConformite)
                 .map((c) => {
                   const color =
@@ -279,14 +273,14 @@ export default function DashboardPage() {
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center">
             <p className="text-2xl font-bold text-amber-400">{stats.ecartToday}</p>
-            <p className="text-xs text-slate-500 mt-1">Écart</p>
+            <p className="text-xs text-slate-500 mt-1">Ecart</p>
           </div>
         </div>
 
         {isToday && (
           <div>
             <h2 className="text-sm font-semibold text-slate-300 mb-2">
-              Non Conformités ouvertes
+              Non Conformites ouvertes
             </h2>
             <div className="grid grid-cols-3 gap-3">
               {(['CRITIQUE', 'MAJEURE', 'MINEURE'] as const).map((g) => (
@@ -306,10 +300,10 @@ export default function DashboardPage() {
 
         <div>
           <h2 className="text-sm font-semibold text-slate-300 mb-2">
-            Zones à risque (7 derniers jours)
+            Zones a risque (7 derniers jours)
           </h2>
           {stats.topZonesRisque.length === 0 ? (
-            <p className="text-slate-500 text-sm">Aucune non conformité sur 7 jours.</p>
+            <p className="text-slate-500 text-sm">Aucune non conformite sur 7 jours.</p>
           ) : (
             <div className="space-y-2">
               {stats.topZonesRisque.map((z, i) => (
