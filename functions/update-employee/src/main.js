@@ -71,7 +71,8 @@ export default async ({ req, res, log, error }) => {
   try {
     // ---------- Branche escalade automatique (declenchee par Cron uniquement) ----------
     const trigger = req.headers['x-appwrite-trigger'];
-    if (trigger === 'schedule') {
+      log('TRIGGER DETECTE: [' + trigger + '] - Tous les headers: ' + JSON.stringify(req.headers));
+      if (trigger === 'schedule') {
       log('Declenchement programme detecte, lancement de l\'escalade CAPA...');
       const count = await escalateOverdueCapas(databases, log);
       return res.json({ success: true, escalatedCount: count });
