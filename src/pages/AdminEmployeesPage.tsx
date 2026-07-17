@@ -1,7 +1,9 @@
 // ============================================================
 // HyperExcellence - Ecran Admin : gestion des employes
+// Converti a TanStack Query (Phase 1 - Performance)
 // ============================================================
-import { useEffect, useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createEmployee,
   listEmployees,
@@ -21,8 +23,35 @@ import {
 } from '../constants';
 
 export default function AdminEmployeesPage() {
-  const [employees, setEmployees] = useState<Profile[]>([]);
-  const [isLoadingList, setIsLoadingList] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: employees = [], isLoading: isLoadingList } = useQuery({
+    queryKey: ['employees'],
+    queryFn: listEmployees,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ profileId, input }: { profileId: string; input: Parameters<typeof updateEmployee>[1] }) =>
+      updateEmployee(profileId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (emp: Profile) =>
+      emp.is_active ? deactivateEmployee(emp.$id) : reactivateEmployee(emp.$id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
 
   const [badgeNumber, setBadgeNumber] = useState('');
   const [pin, setPin] = useState('');
@@ -32,29 +61,15 @@ export default function AdminEmployeesPage() {
   const [sector, setSector] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFullName, setEditFullName] = useState('');
   const [editRole, setEditRole] = useState<UserRole>(ROLES.EMPLOYE);
   const [editDepartmentId, setEditDepartmentId] = useState('');
   const [editSector, setEditSector] = useState('');
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const isSectorRole = ROLES_SECTOR_WIDE.includes(role);
   const isEditSectorRole = ROLES_SECTOR_WIDE.includes(editRole);
-
-  async function loadEmployees() {
-    setIsLoadingList(true);
-    const list = await listEmployees();
-    setEmployees(list);
-    setIsLoadingList(false);
-  }
-
-  useEffect(() => {
-    loadEmployees();
-  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -66,9 +81,8 @@ export default function AdminEmployeesPage() {
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      await createEmployee({
+      await createMutation.mutateAsync({
         badgeNumber,
         pin,
         fullName,
@@ -83,11 +97,8 @@ export default function AdminEmployeesPage() {
       setRole(ROLES.EMPLOYE);
       setDepartmentId('');
       setSector('');
-      await loadEmployees();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la creation.');
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -104,37 +115,28 @@ export default function AdminEmployeesPage() {
       alert('Le nom complet est requis.');
       return;
     }
-    setIsSavingEdit(true);
+    const sectorRole = ROLES_SECTOR_WIDE.includes(editRole);
     try {
-      const sectorRole = ROLES_SECTOR_WIDE.includes(editRole);
-      await updateEmployee(profileId, {
-        fullName: editFullName.trim(),
-        role: editRole,
-        departmentId: sectorRole ? null : editDepartmentId || null,
-        sector: sectorRole ? editSector || null : null,
+      await updateMutation.mutateAsync({
+        profileId,
+        input: {
+          fullName: editFullName.trim(),
+          role: editRole,
+          departmentId: sectorRole ? null : editDepartmentId || null,
+          sector: sectorRole ? editSector || null : null,
+        },
       });
       setEditingId(null);
-      await loadEmployees();
     } catch {
       alert('Erreur lors de la modification.');
-    } finally {
-      setIsSavingEdit(false);
     }
   }
 
   async function toggleActive(emp: Profile) {
-    setTogglingId(emp.$id);
     try {
-      if (emp.is_active) {
-        await deactivateEmployee(emp.$id);
-      } else {
-        await reactivateEmployee(emp.$id);
-      }
-      await loadEmployees();
+      await toggleMutation.mutateAsync(emp);
     } catch {
       alert('Erreur lors du changement de statut.');
-    } finally {
-      setTogglingId(null);
     }
   }
 
@@ -255,10 +257,10 @@ export default function AdminEmployeesPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={createMutation.isPending}
             className="w-full rounded-lg bg-amber-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
           >
-            {isSubmitting ? 'Creation...' : "Creer l'employe"}
+            {createMutation.isPending ? 'Creation...' : "Creer l'employe"}
           </button>
         </form>
 
@@ -272,6 +274,7 @@ export default function AdminEmployeesPage() {
             <div className="space-y-2">
               {employees.map((emp) => {
                 const isEditing = editingId === emp.$id;
+                const isToggling = toggleMutation.isPending && toggleMutation.variables?.$id === emp.$id;
 
                 return (
                   <div
@@ -359,28 +362,24 @@ export default function AdminEmployeesPage() {
                           </button>
                           <button
                             onClick={() => toggleActive(emp)}
-                            disabled={togglingId === emp.$id}
+                            disabled={isToggling}
                             className={`flex-1 rounded-lg py-1.5 text-xs ${
                               emp.is_active
                                 ? 'bg-red-500/20 text-red-400'
                                 : 'bg-emerald-500/20 text-emerald-400'
                             }`}
                           >
-                            {togglingId === emp.$id
-                              ? '...'
-                              : emp.is_active
-                              ? 'Desactiver'
-                              : 'Reactiver'}
+                            {isToggling ? '...' : emp.is_active ? 'Desactiver' : 'Reactiver'}
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => saveEdit(emp.$id)}
-                            disabled={isSavingEdit}
+                            disabled={updateMutation.isPending}
                             className="flex-1 rounded-lg bg-amber-500 text-slate-950 font-medium py-1.5 text-xs"
                           >
-                            {isSavingEdit ? 'Enregistrement...' : 'Enregistrer'}
+                            {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
