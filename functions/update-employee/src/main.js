@@ -1,8 +1,9 @@
 // ============================================================
 // HyperExcellence - Appwrite Function : modification d'employe
-// + Garde-fou de connexion (fusionne, limite 2 Functions plan gratuit).
+// + Garde-fou de connexion + Escalade automatique CAPA (Cron)
+// Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
-import { Client, Databases, Query } from 'node-appwrite';
+import { Client, Databases, Query, ID } from 'node-appwrite';
 
 const DB_ID = 'hyperclean_pro';
 const MAX_ATTEMPTS = 5;
@@ -10,13 +11,53 @@ const LOCK_MINUTES = 15;
 
 async function findProfileByBadge(databases, badgeNumber, log) {
   const all = await databases.listDocuments(DB_ID, 'profiles', [Query.limit(500)]);
-  log('Total profils scannes: ' + all.documents.length);
   const target = badgeNumber.trim().toLowerCase();
-  const found = all.documents.find(
+  return all.documents.find(
     (p) => (p.badge_number || '').trim().toLowerCase() === target
   );
-  log('Recherche badge "' + target + '" -> ' + (found ? 'TROUVE ' + found.$id : 'NON TROUVE'));
-  return found;
+}
+
+async function escalateOverdueCapas(databases, log) {
+  const today = new Date().toISOString().slice(0, 10);
+  const capasResult = await databases.listDocuments(DB_ID, 'capa', [
+    Query.lessThan('echeance', today),
+    Query.isNull('verified_at'),
+    Query.limit(200),
+  ]);
+
+  let escalatedCount = 0;
+
+  for (const capa of capasResult.documents) {
+    if (capa.escalated) continue; // deja escaladee, on ne fait rien
+
+    try {
+      const nc = await databases.getDocument(DB_ID, 'non_conformites', capa.non_conformite_id);
+      if (nc.status === 'CLOTUREE') continue;
+
+      await databases.updateDocument(DB_ID, 'capa', capa.$id, { escalated: true });
+
+      await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+        actor_id: null,
+        action: 'ESCALADE_AUTOMATIQUE_CAPA',
+        entity_type: 'capa',
+        entity_id: capa.$id,
+        payload: JSON.stringify({
+          non_conformite_id: capa.non_conformite_id,
+          responsable_id: capa.responsable_id,
+          echeance: capa.echeance,
+          declenche_le: new Date().toISOString(),
+        }),
+      });
+
+      escalatedCount++;
+      log('CAPA escaladee: ' + capa.$id);
+    } catch (e) {
+      log('Erreur escalade CAPA ' + capa.$id + ': ' + (e.message || e));
+    }
+  }
+
+  log('Escalade terminee: ' + escalatedCount + ' CAPA escaladees.');
+  return escalatedCount;
 }
 
 export default async ({ req, res, log, error }) => {
@@ -28,9 +69,18 @@ export default async ({ req, res, log, error }) => {
   const databases = new Databases(client);
 
   try {
+    // ---------- Branche escalade automatique (declenchee par Cron uniquement) ----------
+    const trigger = req.headers['x-appwrite-trigger'];
+    if (trigger === 'schedule') {
+      log('Declenchement programme detecte, lancement de l\'escalade CAPA...');
+      const count = await escalateOverdueCapas(databases, log);
+      return res.json({ success: true, escalatedCount: count });
+    }
+
     const body = JSON.parse(req.bodyRaw || '{}');
     log('BODY RECU: ' + JSON.stringify(body));
 
+    // ---------- Branche garde-fou PIN (pas d'auth requise) ----------
     if (body.action === 'check' || body.action === 'fail' || body.action === 'reset') {
       const { badgeNumber, action } = body;
       if (!badgeNumber) {
@@ -73,6 +123,7 @@ export default async ({ req, res, log, error }) => {
       }
     }
 
+    // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
       return res.json({ error: 'Non authentifie.' }, 401);
