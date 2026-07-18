@@ -18,7 +18,15 @@ function badgeToEmail(badgeNumber) {
 
 function labelForRole(role) {
   if (role === 'ADMIN') return 'admin';
-  if (role === 'CHEF_RAYON' || role === 'CHEF_DEPARTEMENT' || role === 'CHEF_SECTEUR') return 'supervisor';
+  const supervisorRoles = [
+    'CHEF_SECTEUR',
+    'CHEF_DEPARTEMENT',
+    'CHEF_RAYON',
+    'CHEF_SECURITE',
+    'CHEF_CAISSE',
+    'MAITRE_METIER',
+  ];
+  if (supervisorRoles.includes(role)) return 'supervisor';
   return null;
 }
 
