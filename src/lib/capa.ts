@@ -1,7 +1,7 @@
 // ============================================================
 // HyperExcellence - CAPA (Circuit 6, étapes 4-7)
 // ============================================================
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { databases } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS } from '../constants';
 import { writeAuditLog } from './auditLog';
@@ -20,6 +20,10 @@ export interface Capa {
  * Étape 4-5 : Qualification + création CAPA.
  * - causeRacine : analyse 5M saisie par le Chef, stockée sur la NC.
  * - Passe la NC en EN_COURS.
+ *
+ * Permissions par document sur la CAPA : le responsable assigné, tout
+ * ADMIN, ou tout encadrant (label 'supervisor') peuvent la modifier
+ * (notamment la vérifier/clôturer). La lecture reste large.
  */
 export async function qualifyAndCreateCapa(params: {
   ncId: string;
@@ -46,7 +50,12 @@ export async function qualifyAndCreateCapa(params: {
       preuve_correction: null,
       verified_by: null,
       verified_at: null,
-    }
+    },
+    [
+      Permission.update(Role.user(params.responsableId)),
+      Permission.update(Role.label('admin')),
+      Permission.update(Role.label('supervisor')),
+    ]
   );
 
   await writeAuditLog({
