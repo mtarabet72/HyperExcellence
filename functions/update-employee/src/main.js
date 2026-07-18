@@ -3,7 +3,7 @@
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
-import { Client, Databases, Query, ID } from 'node-appwrite';
+import { Client, Databases, Users, Query, ID } from 'node-appwrite';
 
 const DB_ID = 'hyperclean_pro';
 const MAX_ATTEMPTS = 5;
@@ -15,6 +15,20 @@ async function findProfileByBadge(databases, badgeNumber, log) {
   return all.documents.find(
     (p) => (p.badge_number || '').trim().toLowerCase() === target
   );
+}
+
+function labelForRole(role) {
+  if (role === 'ADMIN') return 'admin';
+  const supervisorRoles = [
+    'CHEF_SECTEUR',
+    'CHEF_DEPARTEMENT',
+    'CHEF_RAYON',
+    'CHEF_SECURITE',
+    'CHEF_CAISSE',
+    'MAITRE_METIER',
+  ];
+  if (supervisorRoles.includes(role)) return 'supervisor';
+  return null;
 }
 
 async function escalateOverdueCapas(databases, log) {
@@ -67,12 +81,13 @@ export default async ({ req, res, log, error }) => {
     .setKey(req.headers['x-appwrite-key'] ?? '');
 
   const databases = new Databases(client);
+  const users = new Users(client);
 
   try {
     // ---------- Branche escalade automatique (declenchee par Cron uniquement) ----------
     const trigger = req.headers['x-appwrite-trigger'];
-      log('TRIGGER DETECTE: [' + trigger + '] - Tous les headers: ' + JSON.stringify(req.headers));
-      if (trigger === 'schedule') {
+    log('TRIGGER DETECTE: [' + trigger + '] - Tous les headers: ' + JSON.stringify(req.headers));
+    if (trigger === 'schedule') {
       log('Declenchement programme detecte, lancement de l\'escalade CAPA...');
       const count = await escalateOverdueCapas(databases, log);
       return res.json({ success: true, escalatedCount: count });
@@ -152,6 +167,16 @@ export default async ({ req, res, log, error }) => {
 
     const updated = await databases.updateDocument(DB_ID, 'profiles', profileId, payload);
     log('Profil modifie: ' + profileId);
+
+    if (role !== undefined && updated.user_id) {
+      try {
+        const label = labelForRole(role);
+        await users.updateLabels(updated.user_id, label ? [label] : []);
+        log('Label synchronise pour ' + updated.user_id + ': ' + (label || 'aucun'));
+      } catch (labelErr) {
+        log('Erreur synchro label (non bloquant): ' + (labelErr.message || labelErr));
+      }
+    }
 
     return res.json({ success: true, profileId: updated.$id });
   } catch (e) {
