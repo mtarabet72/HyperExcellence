@@ -16,6 +16,12 @@ function badgeToEmail(badgeNumber) {
   return `${badgeNumber.trim().toLowerCase().replace(/\s+/g, '')}@${EMAIL_DOMAIN}`;
 }
 
+function labelForRole(role) {
+  if (role === 'ADMIN') return 'admin';
+  if (role === 'CHEF_RAYON' || role === 'CHEF_DEPARTEMENT' || role === 'CHEF_SECTEUR') return 'supervisor';
+  return null;
+}
+
 export default async ({ req, res, log, error }) => {
   const client = new Client()
     .setEndpoint(process.env.APPWRITE_FUNCTION_API_ENDPOINT)
@@ -51,6 +57,12 @@ export default async ({ req, res, log, error }) => {
 
     const newUser = await users.create(ID.unique(), email, undefined, password, fullName);
     log(`Compte Auth cree: ${newUser.$id}`);
+
+    const label = labelForRole(role);
+    if (label) {
+      await users.updateLabels(newUser.$id, [label]);
+      log(`Label applique: ${label}`);
+    }
 
     const profile = await databases.createDocument(DB_ID, 'profiles', ID.unique(), {
       user_id: newUser.$id,
