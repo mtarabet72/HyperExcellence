@@ -4,8 +4,7 @@
 // "node-appwrite" (serveur, utilisé uniquement dans scripts/)
 // ============================================================
 import { Client, Account, Databases, Functions } from 'appwrite';
-// ...
-export const functions = new Functions(client);
+
 export const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
 export const APPWRITE_PROJECT_ID = '6a55488800125e9fd03e';
 
@@ -15,4 +14,6 @@ const client = new Client()
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const functions = new Functions(client);
+
 export default client;
