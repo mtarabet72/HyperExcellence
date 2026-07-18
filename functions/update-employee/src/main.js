@@ -1,6 +1,7 @@
 // ============================================================
 // HyperExcellence - Appwrite Function : modification d'employe
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
+// + Creation NC / Qualification CAPA (permissions par document)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -138,6 +139,7 @@ export default async ({ req, res, log, error }) => {
         return res.json({ reset: true });
       }
     }
+
     // ---------- Branche creation NC (tout employe authentifie) ----------
     if (body.action === 'create_nc') {
       const callerUserId = req.headers['x-appwrite-user-id'];
@@ -183,6 +185,7 @@ export default async ({ req, res, log, error }) => {
       log('NC creee via Function: ' + nc.$id);
       return res.json({ success: true, ncId: nc.$id });
     }
+
     // ---------- Branche qualification NC + creation CAPA ----------
     if (body.action === 'qualify_capa') {
       const callerUserId = req.headers['x-appwrite-user-id'];
@@ -259,6 +262,7 @@ export default async ({ req, res, log, error }) => {
       log('CAPA creee via Function: ' + capa.$id);
       return res.json({ success: true, capaId: capa.$id });
     }
+
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
