@@ -1,9 +1,11 @@
 // ============================================================
 // HyperExcellence - Circuit Non Conformité (Circuit 6)
 // ============================================================
-import { ID, Query, Permission, Role } from 'appwrite';
-import { databases } from './appwrite';
+import { Query } from 'appwrite';
+import { databases, functions } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, Gravite, NCStatus } from '../constants';
+
+const UPDATE_EMPLOYEE_FUNCTION_ID = '6a592c6000074266e563';
 
 export interface NonConformite {
   $id: string;
@@ -27,35 +29,28 @@ export interface CreateNCInput {
 }
 
 /**
- * Crée une Non Conformité (déclenchée automatiquement quand une tâche
- * est marquée NON_FAIT ou ECART). L'action immédiate est obligatoire,
- * conforme au Circuit 6 de la spécification.
- *
- * Permissions par document : le déclarant, tout ADMIN, ou tout
- * encadrant (label 'supervisor') peuvent modifier cette NC.
- * La lecture reste large (permission de table 'Users' inchangée).
+ * Crée une Non Conformité via la Function serveur (update-employee),
+ * pour que les permissions par document (label admin/supervisor)
+ * soient appliquées correctement, sans restriction cote client.
  */
 export async function createNonConformite(input: CreateNCInput) {
-  return databases.createDocument(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.NON_CONFORMITES,
-    ID.unique(),
-    {
-      zone_id: input.zoneId,
-      task_execution_id: input.taskExecutionId || null,
+  const execution = await functions.createExecution(
+    UPDATE_EMPLOYEE_FUNCTION_ID,
+    JSON.stringify({
+      action: 'create_nc',
+      zoneId: input.zoneId,
+      taskExecutionId: input.taskExecutionId,
       gravite: input.gravite,
-      cause: null,
-      action_immediate: input.actionImmediate,
-      declared_by: input.declaredBy,
-      status: 'OUVERTE',
-      closed_at: null,
-    },
-    [
-      Permission.update(Role.user(input.declaredBy)),
-      Permission.update(Role.label('admin')),
-      Permission.update(Role.label('supervisor')),
-    ]
+      actionImmediate: input.actionImmediate,
+    }),
+    false // synchrone : on attend la reponse
   );
+
+  const result = JSON.parse(execution.responseBody);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }
 
 /**
@@ -76,6 +71,7 @@ export async function listOpenNonConformites(): Promise<NonConformite[]> {
 
 /**
  * Clôture une NC (marquée résolue).
+ * TODO (étape suivante) : passer aussi par la Function serveur.
  */
 export async function closeNonConformite(ncId: string) {
   return databases.updateDocument(
