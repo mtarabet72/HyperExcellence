@@ -183,6 +183,82 @@ export default async ({ req, res, log, error }) => {
       log('NC creee via Function: ' + nc.$id);
       return res.json({ success: true, ncId: nc.$id });
     }
+    // ---------- Branche qualification NC + creation CAPA ----------
+    if (body.action === 'qualify_capa') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile) {
+        return res.json({ error: 'Profil introuvable.' }, 403);
+      }
+
+      const { ncId, causeRacine, responsableId, echeance } = body;
+      if (!ncId || !causeRacine || !responsableId || !echeance) {
+        return res.json({ error: 'Champs requis manquants.' }, 400);
+      }
+
+      const nc = await databases.getDocument(DB_ID, 'non_conformites', ncId);
+
+      const ROLE_RANK = {
+        EMPLOYE: 0, ASJ: 0, SUPERVISEUR: 0,
+        CHEF_CAISSE: 1, CHEF_SECURITE: 1, MAITRE_METIER: 1, CHEF_RAYON: 1,
+        CHEF_DEPARTEMENT: 2, CHEF_SECTEUR: 3, ADMIN: 4,
+      };
+      const GRAVITE_MIN_RANK = { MINEURE: 1, MAJEURE: 2, CRITIQUE: 4 };
+
+      const rank = ROLE_RANK[callerProfile.role] ?? -1;
+      const canQualify =
+        callerProfile.role !== 'SUPERVISEUR' &&
+        rank >= (GRAVITE_MIN_RANK[nc.gravite] ?? 99);
+
+      if (!canQualify) {
+        return res.json({ error: 'Role insuffisant pour qualifier cette NC.' }, 403);
+      }
+
+      await databases.updateDocument(DB_ID, 'non_conformites', ncId, {
+        status: 'EN_COURS',
+        cause: causeRacine,
+      });
+
+      const responsableProfile = await databases.getDocument(DB_ID, 'profiles', responsableId);
+
+      const capa = await databases.createDocument(
+        DB_ID,
+        'capa',
+        ID.unique(),
+        {
+          non_conformite_id: ncId,
+          responsable_id: responsableId,
+          echeance,
+          preuve_correction: null,
+          verified_by: null,
+          verified_at: null,
+        },
+        [
+          Permission.read(Role.any()),
+          Permission.update(Role.user(responsableProfile.user_id)),
+          Permission.update(Role.label('admin')),
+          Permission.update(Role.label('supervisor')),
+        ]
+      );
+
+      await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+        actor_id: callerProfile.$id,
+        action: 'QUALIFICATION_CAPA_CREEE',
+        entity_type: 'non_conformite',
+        entity_id: ncId,
+        payload: JSON.stringify({ causeRacine, responsableId, echeance }),
+      });
+
+      log('CAPA creee via Function: ' + capa.$id);
+      return res.json({ success: true, capaId: capa.$id });
+    }
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
