@@ -138,7 +138,51 @@ export default async ({ req, res, log, error }) => {
         return res.json({ reset: true });
       }
     }
+    // ---------- Branche creation NC (tout employe authentifie) ----------
+    if (body.action === 'create_nc') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
 
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile) {
+        return res.json({ error: 'Profil introuvable.' }, 403);
+      }
+
+      const { zoneId, taskExecutionId, gravite, actionImmediate } = body;
+      if (!zoneId || !gravite || !actionImmediate) {
+        return res.json({ error: 'Champs requis manquants.' }, 400);
+      }
+
+      const nc = await databases.createDocument(
+        DB_ID,
+        'non_conformites',
+        ID.unique(),
+        {
+          zone_id: zoneId,
+          task_execution_id: taskExecutionId || null,
+          gravite,
+          cause: null,
+          action_immediate: actionImmediate,
+          declared_by: callerProfile.$id,
+          status: 'OUVERTE',
+          closed_at: null,
+        },
+        [
+          Permission.read(Role.any()),
+          Permission.update(Role.user(callerUserId)),
+          Permission.update(Role.label('admin')),
+          Permission.update(Role.label('supervisor')),
+        ]
+      );
+
+      log('NC creee via Function: ' + nc.$id);
+      return res.json({ success: true, ncId: nc.$id });
+    }
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
