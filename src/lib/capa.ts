@@ -1,10 +1,12 @@
 // ============================================================
 // HyperExcellence - CAPA (Circuit 6, étapes 4-7)
 // ============================================================
-import { ID, Query, Permission, Role } from 'appwrite';
-import { databases } from './appwrite';
+import { ID, Query } from 'appwrite';
+import { databases, functions } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS } from '../constants';
 import { writeAuditLog } from './auditLog';
+
+const UPDATE_EMPLOYEE_FUNCTION_ID = '6a592c6000074266e563';
 
 export interface Capa {
   $id: string;
@@ -17,13 +19,9 @@ export interface Capa {
 }
 
 /**
- * Étape 4-5 : Qualification + création CAPA.
- * - causeRacine : analyse 5M saisie par le Chef, stockée sur la NC.
- * - Passe la NC en EN_COURS.
- *
- * Permissions par document sur la CAPA : le responsable assigné, tout
- * ADMIN, ou tout encadrant (label 'supervisor') peuvent la modifier
- * (notamment la vérifier/clôturer). La lecture reste large.
+ * Étape 4-5 : Qualification + création CAPA, via la Function serveur
+ * (verifie le role cote serveur + applique les permissions par
+ * document sur la CAPA, sans restriction cote client).
  */
 export async function qualifyAndCreateCapa(params: {
   ncId: string;
@@ -32,45 +30,23 @@ export async function qualifyAndCreateCapa(params: {
   echeance: string;
   actorId: string;
 }) {
-  await databases.updateDocument(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.NON_CONFORMITES,
-    params.ncId,
-    { status: 'EN_COURS', cause: params.causeRacine }
-  );
-
-  const capa = await databases.createDocument(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.CAPA,
-    ID.unique(),
-    {
-      non_conformite_id: params.ncId,
-      responsable_id: params.responsableId,
-      echeance: params.echeance,
-      preuve_correction: null,
-      verified_by: null,
-      verified_at: null,
-    },
-    [
-      Permission.update(Role.user(params.responsableId)),
-      Permission.update(Role.label('admin')),
-      Permission.update(Role.label('supervisor')),
-    ]
-  );
-
-  await writeAuditLog({
-    actorId: params.actorId,
-    action: 'QUALIFICATION_CAPA_CREEE',
-    entityType: 'non_conformite',
-    entityId: params.ncId,
-    payload: {
+  const execution = await functions.createExecution(
+    UPDATE_EMPLOYEE_FUNCTION_ID,
+    JSON.stringify({
+      action: 'qualify_capa',
+      ncId: params.ncId,
       causeRacine: params.causeRacine,
       responsableId: params.responsableId,
       echeance: params.echeance,
-    },
-  });
+    }),
+    false
+  );
 
-  return capa;
+  const result = JSON.parse(execution.responseBody);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }
 
 /**
@@ -85,6 +61,7 @@ export async function getCapaForNC(ncId: string): Promise<Capa | null> {
 
 /**
  * Étape 6-7 : Vérification efficacité + Clôture (signature simplifiée = nom saisi).
+ * TODO (étape suivante) : passer par la Function serveur.
  */
 export async function verifyAndCloseCapa(params: {
   capaId: string;
