@@ -1,7 +1,7 @@
 // ============================================================
 // HyperExcellence - Circuit Non Conformité (Circuit 6)
 // ============================================================
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 import { databases } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, Gravite, NCStatus } from '../constants';
 
@@ -30,6 +30,10 @@ export interface CreateNCInput {
  * Crée une Non Conformité (déclenchée automatiquement quand une tâche
  * est marquée NON_FAIT ou ECART). L'action immédiate est obligatoire,
  * conforme au Circuit 6 de la spécification.
+ *
+ * Permissions par document : le déclarant, tout ADMIN, ou tout
+ * encadrant (label 'supervisor') peuvent modifier cette NC.
+ * La lecture reste large (permission de table 'Users' inchangée).
  */
 export async function createNonConformite(input: CreateNCInput) {
   return databases.createDocument(
@@ -45,7 +49,12 @@ export async function createNonConformite(input: CreateNCInput) {
       declared_by: input.declaredBy,
       status: 'OUVERTE',
       closed_at: null,
-    }
+    },
+    [
+      Permission.update(Role.user(input.declaredBy)),
+      Permission.update(Role.label('admin')),
+      Permission.update(Role.label('supervisor')),
+    ]
   );
 }
 
