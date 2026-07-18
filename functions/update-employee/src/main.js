@@ -3,7 +3,7 @@
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
-import { Client, Databases, Users, Query, ID } from 'node-appwrite';
+import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
 
 const DB_ID = 'hyperclean_pro';
 const MAX_ATTEMPTS = 5;
