@@ -1,7 +1,7 @@
 // ============================================================
 // HyperExcellence - Appwrite Function : modification d'employe
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
-// + Creation NC / Qualification CAPA (permissions par document)
+// + Creation NC / Qualification CAPA / Verification CAPA
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -43,7 +43,7 @@ async function escalateOverdueCapas(databases, log) {
   let escalatedCount = 0;
 
   for (const capa of capasResult.documents) {
-    if (capa.escalated) continue; // deja escaladee, on ne fait rien
+    if (capa.escalated) continue;
 
     try {
       const nc = await databases.getDocument(DB_ID, 'non_conformites', capa.non_conformite_id);
@@ -85,7 +85,7 @@ export default async ({ req, res, log, error }) => {
   const users = new Users(client);
 
   try {
-    // ---------- Branche escalade automatique (declenchee par Cron uniquement) ----------
+    // ---------- Branche escalade automatique (Cron) ----------
     const trigger = req.headers['x-appwrite-trigger'];
     log('TRIGGER DETECTE: [' + trigger + '] - Tous les headers: ' + JSON.stringify(req.headers));
     if (trigger === 'schedule') {
@@ -262,7 +262,8 @@ export default async ({ req, res, log, error }) => {
       log('CAPA creee via Function: ' + capa.$id);
       return res.json({ success: true, capaId: capa.$id });
     }
-     // ---------- Branche verification + cloture CAPA (ADMIN uniquement) ----------
+
+    // ---------- Branche verification + cloture CAPA (ADMIN uniquement) ----------
     if (body.action === 'verify_capa') {
       const callerUserId = req.headers['x-appwrite-user-id'];
       if (!callerUserId) {
@@ -306,6 +307,7 @@ export default async ({ req, res, log, error }) => {
       log('CAPA verifiee et cloturee via Function: ' + capaId);
       return res.json({ success: true });
     }
+
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
