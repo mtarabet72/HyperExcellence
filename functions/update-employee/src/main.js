@@ -307,7 +307,44 @@ export default async ({ req, res, log, error }) => {
       log('CAPA verifiee et cloturee via Function: ' + capaId);
       return res.json({ success: true });
     }
+    // ---------- Branche cloture directe NC (ADMIN uniquement) ----------
+    if (body.action === 'close_nc') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
 
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile || callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve aux administrateurs.' }, 403);
+      }
+
+      const { ncId } = body;
+      if (!ncId) {
+        return res.json({ error: 'ncId manquant.' }, 400);
+      }
+
+      const now = new Date().toISOString();
+
+      await databases.updateDocument(DB_ID, 'non_conformites', ncId, {
+        status: 'CLOTUREE',
+        closed_at: now,
+      });
+
+      await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+        actor_id: callerProfile.$id,
+        action: 'NC_CLOTUREE_DIRECTEMENT',
+        entity_type: 'non_conformite',
+        entity_id: ncId,
+        payload: JSON.stringify({ cloture_le: now }),
+      });
+
+      log('NC cloturee directement via Function: ' + ncId);
+      return res.json({ success: true });
+    }
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
