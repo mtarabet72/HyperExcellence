@@ -1,10 +1,9 @@
 // ============================================================
 // HyperExcellence - CAPA (Circuit 6, étapes 4-7)
 // ============================================================
-import { ID, Query } from 'appwrite';
+import { Query } from 'appwrite';
 import { databases, functions } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS } from '../constants';
-import { writeAuditLog } from './auditLog';
 
 const UPDATE_EMPLOYEE_FUNCTION_ID = '6a592c6000074266e563';
 
@@ -19,9 +18,7 @@ export interface Capa {
 }
 
 /**
- * Étape 4-5 : Qualification + création CAPA, via la Function serveur
- * (verifie le role cote serveur + applique les permissions par
- * document sur la CAPA, sans restriction cote client).
+ * Étape 4-5 : Qualification + création CAPA, via la Function serveur.
  */
 export async function qualifyAndCreateCapa(params: {
   ncId: string;
@@ -60,8 +57,8 @@ export async function getCapaForNC(ncId: string): Promise<Capa | null> {
 }
 
 /**
- * Étape 6-7 : Vérification efficacité + Clôture (signature simplifiée = nom saisi).
- * TODO (étape suivante) : passer par la Function serveur.
+ * Étape 6-7 : Vérification efficacité + Clôture, via la Function serveur
+ * (role ADMIN verifie cote serveur, plus seulement cote interface).
  */
 export async function verifyAndCloseCapa(params: {
   capaId: string;
@@ -71,32 +68,23 @@ export async function verifyAndCloseCapa(params: {
   signatureName: string;
   actorId: string;
 }) {
-  const now = new Date().toISOString();
-
-  await databases.updateDocument(APPWRITE_DATABASE_ID, COLLECTIONS.CAPA, params.capaId, {
-    preuve_correction: params.preuveCorrection,
-    verified_by: params.verifiedBy,
-    verified_at: now,
-  });
-
-  await databases.updateDocument(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.NON_CONFORMITES,
-    params.ncId,
-    { status: 'CLOTUREE', closed_at: now }
+  const execution = await functions.createExecution(
+    UPDATE_EMPLOYEE_FUNCTION_ID,
+    JSON.stringify({
+      action: 'verify_capa',
+      capaId: params.capaId,
+      ncId: params.ncId,
+      preuveCorrection: params.preuveCorrection,
+      signatureName: params.signatureName,
+    }),
+    false
   );
 
-  await writeAuditLog({
-    actorId: params.actorId,
-    action: 'CAPA_VERIFIEE_CLOTUREE',
-    entityType: 'non_conformite',
-    entityId: params.ncId,
-    payload: {
-      preuveCorrection: params.preuveCorrection,
-      signature: params.signatureName,
-      verifiedAt: now,
-    },
-  });
+  const result = JSON.parse(execution.responseBody);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }
 
 /**
