@@ -43,7 +43,7 @@ export async function createNonConformite(input: CreateNCInput) {
       gravite: input.gravite,
       actionImmediate: input.actionImmediate,
     }),
-    false // synchrone : on attend la reponse
+    false
   );
 
   const result = JSON.parse(execution.responseBody);
@@ -70,17 +70,22 @@ export async function listOpenNonConformites(): Promise<NonConformite[]> {
 }
 
 /**
- * Clôture une NC (marquée résolue).
- * TODO (étape suivante) : passer aussi par la Function serveur.
+ * Clôture directe d'une NC (sans CAPA), via la Function serveur.
+ * Reserve aux ADMIN (verifie cote serveur).
  */
 export async function closeNonConformite(ncId: string) {
-  return databases.updateDocument(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.NON_CONFORMITES,
-    ncId,
-    {
-      status: 'CLOTUREE',
-      closed_at: new Date().toISOString(),
-    }
+  const execution = await functions.createExecution(
+    UPDATE_EMPLOYEE_FUNCTION_ID,
+    JSON.stringify({
+      action: 'close_nc',
+      ncId,
+    }),
+    false
   );
+
+  const result = JSON.parse(execution.responseBody);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+  return result;
 }
