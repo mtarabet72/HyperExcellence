@@ -262,7 +262,50 @@ export default async ({ req, res, log, error }) => {
       log('CAPA creee via Function: ' + capa.$id);
       return res.json({ success: true, capaId: capa.$id });
     }
+     // ---------- Branche verification + cloture CAPA (ADMIN uniquement) ----------
+    if (body.action === 'verify_capa') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
 
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile || callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve aux administrateurs.' }, 403);
+      }
+
+      const { capaId, ncId, preuveCorrection, signatureName } = body;
+      if (!capaId || !ncId || !preuveCorrection || !signatureName) {
+        return res.json({ error: 'Champs requis manquants.' }, 400);
+      }
+
+      const now = new Date().toISOString();
+
+      await databases.updateDocument(DB_ID, 'capa', capaId, {
+        preuve_correction: preuveCorrection,
+        verified_by: callerProfile.$id,
+        verified_at: now,
+      });
+
+      await databases.updateDocument(DB_ID, 'non_conformites', ncId, {
+        status: 'CLOTUREE',
+        closed_at: now,
+      });
+
+      await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+        actor_id: callerProfile.$id,
+        action: 'CAPA_VERIFIEE_CLOTUREE',
+        entity_type: 'non_conformite',
+        entity_id: ncId,
+        payload: JSON.stringify({ preuveCorrection, signature: signatureName, verifiedAt: now }),
+      });
+
+      log('CAPA verifiee et cloturee via Function: ' + capaId);
+      return res.json({ success: true });
+    }
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
