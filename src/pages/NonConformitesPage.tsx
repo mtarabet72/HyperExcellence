@@ -1,6 +1,7 @@
 // ============================================================
 // HyperExcellence - Suivi NC + CAPA (Circuit 6, workflow complet)
 // Converti a TanStack Query (Phase 1 - Performance)
+// Migre vers le Design System (Phase 2)
 // ============================================================
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +17,10 @@ import {
   canVerifyAndCloseNC,
 } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { FieldLabel, Input, Textarea, Select } from '../components/ui/Field';
 
 async function fetchNCData() {
   const [list, emps] = await Promise.all([listOpenNonConformites(), listEmployees()]);
@@ -151,29 +156,18 @@ export default function NonConformitesPage() {
               const canVerify = canVerifyAndCloseNC(profile.role);
 
               return (
-                <div
-                  key={nc.$id}
-                  className="bg-slate-900 border border-slate-800 rounded-lg p-3 space-y-2"
-                >
+                <Card key={nc.$id} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span
-                      className="text-xs font-semibold px-2 py-1 rounded-full"
-                      style={{
-                        backgroundColor: `${GRAVITE_COLORS[nc.gravite]}20`,
-                        color: GRAVITE_COLORS[nc.gravite],
-                      }}
-                    >
+                    <Badge color={GRAVITE_COLORS[nc.gravite]}>
                       {GRAVITE_LABELS[nc.gravite]}
-                    </span>
+                    </Badge>
                     <span className="text-xs text-slate-500">{formatDate(nc.$createdAt)}</span>
                   </div>
 
                   <p className="text-sm">{nc.action_immediate}</p>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-full">
-                      {NC_STATUS_LABELS[nc.status]}
-                    </span>
+                    <Badge>{NC_STATUS_LABELS[nc.status]}</Badge>
                   </div>
 
                   {nc.status === 'OUVERTE' && !canQualify && (
@@ -183,29 +177,24 @@ export default function NonConformitesPage() {
                   )}
 
                   {nc.status === 'OUVERTE' && canQualify && qualifyingId !== nc.$id && (
-                    <button
-                      onClick={() => setQualifyingId(nc.$id)}
-                      className="w-full rounded-lg bg-amber-500 text-slate-950 font-medium py-2 text-xs"
-                    >
+                    <Button fullWidth onClick={() => setQualifyingId(nc.$id)}>
                       Qualifier & creer CAPA
-                    </button>
+                    </Button>
                   )}
 
                   {nc.status === 'OUVERTE' && canQualify && qualifyingId === nc.$id && (
-                    <div className="space-y-2 bg-slate-950 border border-slate-700 rounded-lg p-3">
-                      <p className="text-xs text-slate-400 font-medium">Cause racine (analyse 5M)</p>
-                      <textarea
+                    <Card tone="nested" className="space-y-2">
+                      <FieldLabel>Cause racine (analyse 5M)</FieldLabel>
+                      <Textarea
                         value={causeRacine}
                         onChange={(e) => setCauseRacine(e.target.value)}
                         placeholder="Ex: Main d'oeuvre - manque de formation SBAM"
                         rows={2}
-                        className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                       />
-                      <p className="text-xs text-slate-400 font-medium">Responsable de l'action</p>
-                      <select
+                      <FieldLabel>Responsable de l'action</FieldLabel>
+                      <Select
                         value={responsableId}
                         onChange={(e) => setResponsableId(e.target.value)}
-                        className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                       >
                         <option value="">— Selectionner —</option>
                         {employees.map((emp) => (
@@ -213,34 +202,30 @@ export default function NonConformitesPage() {
                             {emp.full_name}
                           </option>
                         ))}
-                      </select>
-                      <p className="text-xs text-slate-400 font-medium">Echeance</p>
-                      <input
+                      </Select>
+                      <FieldLabel>Echeance</FieldLabel>
+                      <Input
                         type="date"
                         value={echeance}
                         onChange={(e) => setEcheance(e.target.value)}
-                        className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                       />
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          className="flex-1"
                           onClick={() => handleQualify(nc)}
                           disabled={qualifyMutation.isPending}
-                          className="flex-1 rounded-lg bg-amber-500 text-slate-950 font-medium py-2 text-xs"
                         >
                           {qualifyMutation.isPending ? 'Enregistrement...' : 'Creer la CAPA'}
-                        </button>
-                        <button
-                          onClick={() => setQualifyingId(null)}
-                          className="rounded-lg bg-slate-800 px-3 py-2 text-xs"
-                        >
+                        </Button>
+                        <Button variant="ghost" onClick={() => setQualifyingId(null)}>
                           Annuler
-                        </button>
+                        </Button>
                       </div>
-                    </div>
+                    </Card>
                   )}
 
                   {nc.status === 'EN_COURS' && capaByNC[nc.$id] && (
-                    <div className="bg-slate-950 border border-slate-700 rounded-lg p-3 space-y-2">
+                    <Card tone="nested" className="space-y-2">
                       <p className="text-xs text-slate-400">
                         Responsable :{' '}
                         {employees.find((e) => e.$id === capaByNC[nc.$id].responsable_id)
@@ -255,54 +240,49 @@ export default function NonConformitesPage() {
                       )}
 
                       {canVerify && verifyingId !== nc.$id && (
-                        <button
+                        <Button
+                          variant="success"
+                          fullWidth
                           onClick={() => setVerifyingId(nc.$id)}
-                          className="w-full rounded-lg bg-emerald-500 text-slate-950 font-medium py-2 text-xs"
                         >
                           Verifier & cloturer
-                        </button>
+                        </Button>
                       )}
 
                       {canVerify && verifyingId === nc.$id && (
                         <div className="space-y-2">
-                          <p className="text-xs text-slate-400 font-medium">Preuve de correction</p>
-                          <textarea
+                          <FieldLabel>Preuve de correction</FieldLabel>
+                          <Textarea
                             value={preuveCorrection}
                             onChange={(e) => setPreuveCorrection(e.target.value)}
                             placeholder="Ex: Formation SBAM realisee le 15/07, controle terrain OK"
                             rows={2}
-                            className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                           />
-                          <p className="text-xs text-slate-400 font-medium">
-                            Signature (tapez votre nom complet)
-                          </p>
-                          <input
+                          <FieldLabel>Signature (tapez votre nom complet)</FieldLabel>
+                          <Input
                             type="text"
                             value={signatureName}
                             onChange={(e) => setSignatureName(e.target.value)}
                             placeholder="Nom Prenom"
-                            className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
                           />
                           <div className="flex gap-2">
-                            <button
+                            <Button
+                              variant="success"
+                              className="flex-1"
                               onClick={() => handleVerify(nc)}
                               disabled={verifyMutation.isPending}
-                              className="flex-1 rounded-lg bg-emerald-500 text-slate-950 font-medium py-2 text-xs"
                             >
                               {verifyMutation.isPending ? 'Cloture...' : 'Confirmer la cloture'}
-                            </button>
-                            <button
-                              onClick={() => setVerifyingId(null)}
-                              className="rounded-lg bg-slate-800 px-3 py-2 text-xs"
-                            >
+                            </Button>
+                            <Button variant="ghost" onClick={() => setVerifyingId(null)}>
                               Annuler
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       )}
-                    </div>
+                        </Card>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>
