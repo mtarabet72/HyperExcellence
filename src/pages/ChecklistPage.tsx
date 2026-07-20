@@ -1,6 +1,7 @@
 // ============================================================
 // HyperExcellence - Ecran Checklist (multi-circuits, secteurs, offline, bilingue)
 // Chargement des taches converti a TanStack Query (Phase 1)
+// Migre vers le Design System (Phase 2)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,10 @@ import {
 } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { Label, Select, Textarea } from '../components/ui/Field';
 
 interface CircuitOption {
   checklistId: string;
@@ -153,6 +158,13 @@ const CIRCUITS: CircuitOption[] = [
 
 const ROLES_FULLY_TRANSVERSAL: string[] = [ROLES.ADMIN];
 const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
+
+/** Variante de bouton selon le statut choisi (design system). */
+const STATUS_VARIANT: Record<string, 'success' | 'danger' | 'primary'> = {
+  FAIT: 'success',
+  NON_FAIT: 'danger',
+  ECART: 'primary',
+};
 
 export default function ChecklistPage() {
   const { profile } = useAuth();
@@ -386,22 +398,21 @@ export default function ChecklistPage() {
 
         {visibleCircuits.length > 1 && (
           <div>
-            <label className="block text-xs text-slate-400 mb-1">{t('circuitLabel' as any)}</label>
-            <select
+            <Label>{t('circuitLabel' as any)}</Label>
+            <Select
               value={selectedCircuit?.checklistId}
               onChange={(e) =>
                 setSelectedCircuit(
                   visibleCircuits.find((c) => c.checklistId === e.target.value)!
                 )
               }
-              className="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm"
             >
               {visibleCircuits.map((c) => (
                 <option key={c.checklistId} value={c.checklistId}>
                   {circuitTitle(c)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
@@ -409,14 +420,14 @@ export default function ChecklistPage() {
           <div>
             <h1 className="text-xl font-bold">{circuitTitle(selectedCircuit)}</h1>
             <p className="text-sm text-slate-400 mt-1">
-              {circuitSubtitle(selectedCircuit)} · {doneCount}/{tasks.length} {t('tasksLabel' as any)}
+              {circuitSubtitle(selectedCircuit)} · {doneCount}/{tasks.length}{' '}
+              {t('tasksLabel' as any)}
             </p>
-            <div className="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
-              <div
-                className="h-full bg-amber-500 transition-all"
-                style={{ width: tasks.length ? `${(doneCount / tasks.length) * 100}%` : '0%' }}
-              />
-            </div>
+            <ProgressBar
+              value={tasks.length ? (doneCount / tasks.length) * 100 : 0}
+              color="#f59e0b"
+              className="mt-2"
+            />
           </div>
         )}
 
@@ -434,10 +445,7 @@ export default function ChecklistPage() {
                 language === 'ar' && task.label_ar ? task.label_ar : task.label;
 
               return (
-                <div
-                  key={task.$id}
-                  className="bg-slate-900 border border-slate-800 rounded-lg p-3"
-                >
+                <Card key={task.$id}>
                   <div className="flex items-start gap-2">
                     <span
                       className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
@@ -487,56 +495,49 @@ export default function ChecklistPage() {
                   )}
 
                   {isAskingNC ? (
-                    <div className="mt-3 space-y-2 bg-red-950/30 border border-red-900 rounded-lg p-3">
+                    <Card tone="danger" className="mt-3 space-y-2">
                       <p className="text-xs text-red-300 font-medium">
                         ⚠️ {t('ncFormTitle' as any)}
                       </p>
-                      <textarea
+                      <Textarea
+                        on="card"
                         value={actionImmediate}
                         onChange={(e) => setActionImmediate(e.target.value)}
                         placeholder={t('actionPlaceholder' as any)}
                         rows={2}
-                        className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                       />
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          variant="danger"
+                          className="flex-1"
                           onClick={() => confirmNC(task)}
                           disabled={savingTaskId === task.$id}
-                          className="flex-1 rounded-lg bg-red-500 text-slate-950 font-medium py-2 text-xs"
                         >
-                          {savingTaskId === task.$id ? t('savingLabel' as any) : t('confirmNCButton' as any)}
-                        </button>
-                        <button
-                          onClick={() => setNcTaskId(null)}
-                          className="rounded-lg bg-slate-800 px-3 py-2 text-xs"
-                        >
+                          {savingTaskId === task.$id
+                            ? t('savingLabel' as any)
+                            : t('confirmNCButton' as any)}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setNcTaskId(null)}>
                           {t('cancel')}
-                        </button>
+                        </Button>
                       </div>
-                    </div>
+                    </Card>
                   ) : (
                     <div className="flex gap-2 mt-3">
                       {(['FAIT', 'NON_FAIT', 'ECART'] as TaskStatus[]).map((s) => (
-                        <button
+                        <Button
                           key={s}
+                          variant={status === s ? STATUS_VARIANT[s] : 'ghost'}
+                          className="flex-1 transition-colors"
                           onClick={() => handleStatusClick(task, s)}
                           disabled={savingTaskId === task.$id}
-                          className={`flex-1 rounded-lg py-2 text-xs font-medium transition-colors ${
-                            status === s
-                              ? s === 'FAIT'
-                                ? 'bg-emerald-500 text-slate-950'
-                                : s === 'NON_FAIT'
-                                ? 'bg-red-500 text-slate-950'
-                                : 'bg-amber-500 text-slate-950'
-                              : 'bg-slate-800 text-slate-300'
-                          }`}
                         >
                           {statusLabels[s]}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>
