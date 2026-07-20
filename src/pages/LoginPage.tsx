@@ -1,10 +1,13 @@
 // ============================================================
 // HyperExcellence - Ecran de connexion Badge + PIN (bilingue, securise)
+// Migre vers le Design System (Phase 2)
 // ============================================================
 import { useState, FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AccountLockedError } from '../lib/auth';
+import { Button } from '../components/ui/Button';
+import { Label, Input } from '../components/ui/Field';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -70,11 +73,12 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="badge" className="block text-sm text-slate-300 mb-1">
+            <Label size="lg" htmlFor="badge">
               {t('badgeNumber')}
-            </label>
-            <input
+            </Label>
+            <Input
               id="badge"
+              size="lg"
               type="text"
               inputMode="text"
               autoCapitalize="characters"
@@ -82,16 +86,16 @@ export default function LoginPage() {
               onChange={(e) => setBadgeNumber(e.target.value)}
               placeholder="B00123"
               dir="ltr"
-              className="w-full rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
 
           <div>
-            <label htmlFor="pin" className="block text-sm text-slate-300 mb-1">
+            <Label size="lg" htmlFor="pin">
               {t('pinCode')}
-            </label>
-            <input
+            </Label>
+            <Input
               id="pin"
+              size="lg"
               type="password"
               inputMode="numeric"
               maxLength={6}
@@ -99,21 +103,15 @@ export default function LoginPage() {
               onChange={(e) => setPin(e.target.value)}
               placeholder="••••"
               dir="ltr"
-              className="w-full rounded-lg bg-slate-900 border border-slate-700 px-4 py-3 text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="tracking-widest"
             />
           </div>
 
-          {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
-          )}
+          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-amber-500 text-slate-950 font-semibold py-3 disabled:opacity-50"
-          >
+          <Button type="submit" size="lg" fullWidth disabled={isSubmitting}>
             {isSubmitting ? t('loggingIn') : t('loginButton')}
-          </button>
+          </Button>
         </form>
       </div>
     </div>
