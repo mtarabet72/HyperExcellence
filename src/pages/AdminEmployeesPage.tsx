@@ -1,6 +1,7 @@
 // ============================================================
 // HyperExcellence - Ecran Admin : gestion des employes
 // Converti a TanStack Query (Phase 1 - Performance)
+// Migre vers le Design System (Phase 2)
 // ============================================================
 import { useState, FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +22,10 @@ import {
   ROLES_SECTOR_WIDE,
   UserRole,
 } from '../constants';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Label, Input, Select } from '../components/ui/Field';
 
 export default function AdminEmployeesPage() {
   const queryClient = useQueryClient();
@@ -155,68 +160,71 @@ export default function AdminEmployeesPage() {
       <div className="max-w-2xl mx-auto space-y-8">
         <h1 className="text-xl font-bold">Gestion des employes</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4 bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 bg-slate-900 border border-slate-800 rounded-lg p-4"
+        >
           <h2 className="text-sm font-semibold text-slate-300">Nouvel employe</h2>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Numero de badge</label>
-              <input
+              <Label>Numero de badge</Label>
+              <Input
+                on="card"
                 type="text"
                 value={badgeNumber}
                 onChange={(e) => setBadgeNumber(e.target.value)}
                 placeholder="B00123"
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Code PIN</label>
-              <input
+              <Label>Code PIN</Label>
+              <Input
+                on="card"
                 type="text"
                 inputMode="numeric"
                 maxLength={6}
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="1234"
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Nom complet</label>
-            <input
+            <Label>Nom complet</Label>
+            <Input
+              on="card"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nom Prenom"
-              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Role</label>
-              <select
+              <Label>Role</Label>
+              <Select
+                on="card"
                 value={role}
                 onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
               >
                 {Object.values(ROLES).map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABELS[r]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               {isSectorRole ? (
                 <>
-                  <label className="block text-xs text-slate-400 mb-1">Secteur (plusieurs rayons)</label>
-                  <select
+                  <Label>Secteur (plusieurs rayons)</Label>
+                  <Select
+                    on="card"
                     value={sector}
                     onChange={(e) => setSector(e.target.value)}
-                    className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                   >
                     <option value="">— Selectionner —</option>
                     {Object.values(SECTORS).map((s) => (
@@ -224,15 +232,15 @@ export default function AdminEmployeesPage() {
                         {SECTOR_LABELS[s]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </>
               ) : (
                 <>
-                  <label className="block text-xs text-slate-400 mb-1">Rayon / Departement</label>
-                  <select
+                  <Label>Rayon / Departement</Label>
+                  <Select
+                    on="card"
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
-                    className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                   >
                     <option value="">— Aucun —</option>
                     {DEPARTMENTS.map((d) => (
@@ -240,7 +248,7 @@ export default function AdminEmployeesPage() {
                         {d.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </>
               )}
             </div>
@@ -255,13 +263,9 @@ export default function AdminEmployeesPage() {
           {error && <p className="text-red-400 text-sm">{error}</p>}
           {successMessage && <p className="text-emerald-400 text-sm">{successMessage}</p>}
 
-          <button
-            type="submit"
-            disabled={createMutation.isPending}
-            className="w-full rounded-lg bg-amber-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
-          >
+          <Button type="submit" size="md" fullWidth disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Creation...' : "Creer l'employe"}
-          </button>
+          </Button>
         </form>
 
         <div>
@@ -274,13 +278,11 @@ export default function AdminEmployeesPage() {
             <div className="space-y-2">
               {employees.map((emp) => {
                 const isEditing = editingId === emp.$id;
-                const isToggling = toggleMutation.isPending && toggleMutation.variables?.$id === emp.$id;
+                const isToggling =
+                  toggleMutation.isPending && toggleMutation.variables?.$id === emp.$id;
 
                 return (
-                  <div
-                    key={emp.$id}
-                    className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"
-                  >
+                  <Card key={emp.$id}>
                     {!isEditing ? (
                       <div className="flex items-center justify-between">
                         <div>
@@ -290,41 +292,35 @@ export default function AdminEmployeesPage() {
                             {scopeLabel(emp)}
                           </p>
                         </div>
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            emp.is_active
-                              ? 'bg-emerald-500/20 text-emerald-400'
-                              : 'bg-red-500/20 text-red-400'
-                          }`}
-                        >
+                        <Badge tone={emp.is_active ? 'success' : 'danger'}>
                           {emp.is_active ? 'Actif' : 'Inactif'}
-                        </span>
+                        </Badge>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <input
+                        <Input
+                          on="card"
                           type="text"
                           value={editFullName}
                           onChange={(e) => setEditFullName(e.target.value)}
-                          className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                         />
                         <div className="grid grid-cols-2 gap-2">
-                          <select
+                          <Select
+                            on="card"
                             value={editRole}
                             onChange={(e) => setEditRole(e.target.value as UserRole)}
-                            className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                           >
                             {Object.values(ROLES).map((r) => (
                               <option key={r} value={r}>
                                 {ROLE_LABELS[r]}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                           {isEditSectorRole ? (
-                            <select
+                            <Select
+                              on="card"
                               value={editSector}
                               onChange={(e) => setEditSector(e.target.value)}
-                              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                             >
                               <option value="">— Secteur —</option>
                               {Object.values(SECTORS).map((s) => (
@@ -332,12 +328,12 @@ export default function AdminEmployeesPage() {
                                   {SECTOR_LABELS[s]}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                           ) : (
-                            <select
+                            <Select
+                              on="card"
                               value={editDepartmentId}
                               onChange={(e) => setEditDepartmentId(e.target.value)}
-                              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
                             >
                               <option value="">— Aucun —</option>
                               {DEPARTMENTS.map((d) => (
@@ -345,7 +341,7 @@ export default function AdminEmployeesPage() {
                                   {d.name}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                           )}
                         </div>
                       </div>
@@ -354,43 +350,41 @@ export default function AdminEmployeesPage() {
                     <div className="flex gap-2 mt-2">
                       {!isEditing ? (
                         <>
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="flex-1"
                             onClick={() => startEdit(emp)}
-                            className="flex-1 rounded-lg bg-slate-800 text-slate-200 py-1.5 text-xs"
                           >
                             Modifier
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant={emp.is_active ? 'dangerSoft' : 'successSoft'}
+                            size="xs"
+                            className="flex-1"
                             onClick={() => toggleActive(emp)}
                             disabled={isToggling}
-                            className={`flex-1 rounded-lg py-1.5 text-xs ${
-                              emp.is_active
-                                ? 'bg-red-500/20 text-red-400'
-                                : 'bg-emerald-500/20 text-emerald-400'
-                            }`}
                           >
                             {isToggling ? '...' : emp.is_active ? 'Desactiver' : 'Reactiver'}
-                          </button>
+                          </Button>
                         </>
                       ) : (
                         <>
-                          <button
+                          <Button
+                            size="xs"
+                            className="flex-1"
                             onClick={() => saveEdit(emp.$id)}
                             disabled={updateMutation.isPending}
-                            className="flex-1 rounded-lg bg-amber-500 text-slate-950 font-medium py-1.5 text-xs"
                           >
                             {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs"
-                          >
+                          </Button>
+                          <Button variant="ghost" size="xs" onClick={() => setEditingId(null)}>
                             Annuler
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
-                  </div>
+                  </Card>
                 );
               })}
             </div>
