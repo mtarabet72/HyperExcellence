@@ -3,8 +3,8 @@
 // ============================================================
 import { ButtonHTMLAttributes } from 'react';
 
-type Variant = 'primary' | 'success' | 'info' | 'ghost';
-type Size = 'sm' | 'md';
+type Variant = 'primary' | 'success' | 'info' | 'ghost' | 'successSoft' | 'dangerSoft';
+type Size = 'xs' | 'sm' | 'md';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -16,10 +16,13 @@ const VARIANTS: Record<Variant, string> = {
   primary: 'bg-amber-500 text-slate-950 font-medium',
   success: 'bg-emerald-500 text-slate-950 font-medium',
   info: 'bg-blue-500 text-slate-950 font-medium',
-  ghost: 'bg-slate-800 text-slate-100',
+  ghost: 'bg-slate-800 text-slate-200',
+  successSoft: 'bg-emerald-500/20 text-emerald-400',
+  dangerSoft: 'bg-red-500/20 text-red-400',
 };
 
 const SIZES: Record<Size, string> = {
+  xs: 'py-1.5 px-3 text-xs',
   sm: 'py-2 px-3 text-xs',
   md: 'py-2.5 px-4 text-sm',
 };
