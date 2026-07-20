@@ -11,7 +11,7 @@ type Variant =
   | 'ghost'
   | 'successSoft'
   | 'dangerSoft';
-type Size = 'xs' | 'sm' | 'md';
+type Size = 'xs' | 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -33,6 +33,7 @@ const SIZES: Record<Size, string> = {
   xs: 'py-1.5 px-3 text-xs',
   sm: 'py-2 px-3 text-xs',
   md: 'py-2.5 px-4 text-sm',
+  lg: 'py-3 px-4 text-sm font-semibold',
 };
 
 export function Button({
