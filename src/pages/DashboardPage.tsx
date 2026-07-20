@@ -1,6 +1,7 @@
 // ============================================================
 // HyperExcellence - Tableau de bord KPI Admin (Circuit 10)
 // Converti a TanStack Query (Phase 1 - Performance)
+// Migre vers le Design System (Phase 2)
 // ============================================================
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +17,13 @@ import {
   GRAVITE_COLORS,
   CIRCUIT_TITLES,
 } from '../constants';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Stat } from '../components/ui/Stat';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { Label, Input } from '../components/ui/Field';
+import { COLORS, conformiteColor } from '../components/ui/tokens';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -80,12 +88,7 @@ export default function DashboardPage() {
 
   const { stats, zoneNames, profileNames, overdueCapas } = data;
 
-  const conformiteColor =
-    stats.tauxConformite >= 90
-      ? '#10b981'
-      : stats.tauxConformite >= 80
-      ? '#f97316'
-      : '#ef4444';
+  const tauxColor = conformiteColor(stats.tauxConformite);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
@@ -97,17 +100,16 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-          <label className="block text-xs text-slate-400 mb-1">
-            Consulter la journee du
-          </label>
+        <Card>
+          <Label>Consulter la journee du</Label>
           <div className="flex items-center gap-2">
-            <input
+            <Input
+              on="card"
               type="date"
               value={selectedDate}
               max={todayISO()}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
+              className="flex-1"
             />
             {!isToday && (
               <button
@@ -118,20 +120,22 @@ export default function DashboardPage() {
               </button>
             )}
           </div>
-        </div>
+        </Card>
 
-        <button
+        <Button
+          variant="info"
+          size="md"
+          fullWidth
           onClick={handleExportPDF}
           disabled={isExporting}
-          className="w-full rounded-lg bg-blue-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
         >
           {isExporting
             ? 'Generation du PDF...'
             : `Exporter l'audit du ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')} (PDF)`}
-        </button>
+        </Button>
 
         {isToday && overdueCapas.length > 0 && (
-          <div className="bg-red-950/40 border border-red-800 rounded-lg p-3 space-y-2">
+          <Card tone="danger" className="space-y-2">
             <p className="text-sm font-semibold text-red-300">
               {overdueCapas.length} CAPA en retard — escalade requise
             </p>
@@ -139,15 +143,9 @@ export default function DashboardPage() {
               {overdueCapas.map((c) => (
                 <div key={c.$id} className="bg-slate-950 border border-red-900 rounded-lg p-2">
                   <div className="flex items-center justify-between">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: `${GRAVITE_COLORS[c.ncGravite as keyof typeof GRAVITE_COLORS]}20`,
-                        color: GRAVITE_COLORS[c.ncGravite as keyof typeof GRAVITE_COLORS],
-                      }}
-                    >
+                    <Badge color={GRAVITE_COLORS[c.ncGravite as keyof typeof GRAVITE_COLORS]}>
                       {GRAVITE_LABELS[c.ncGravite as keyof typeof GRAVITE_LABELS]}
-                    </span>
+                    </Badge>
                     <span className="text-xs text-red-400">
                       Echeance : {c.echeance ? c.echeance.slice(0, 10) : '—'}
                     </span>
@@ -159,44 +157,42 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <Card padding="md">
           <p className="text-xs text-slate-400 mb-2">
-            Taux de conformite — {isToday ? "Aujourd'hui" : new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')}
+            Taux de conformite —{' '}
+            {isToday
+              ? "Aujourd'hui"
+              : new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')}
           </p>
           <div className="flex items-end gap-2">
-            <span className="text-4xl font-bold" style={{ color: conformiteColor }}>
+            <span className="text-4xl font-bold" style={{ color: tauxColor }}>
               {stats.tauxConformite}%
             </span>
             <span className="text-xs text-slate-500 mb-1">
               ({stats.faitToday}/{stats.totalExecutionsToday} taches, dedoublonne)
             </span>
           </div>
-          <div className="w-full h-2 bg-slate-800 rounded-full mt-3 overflow-hidden">
-            <div
-              className="h-full transition-all"
-              style={{ width: `${stats.tauxConformite}%`, backgroundColor: conformiteColor }}
-            />
-          </div>
-        </div>
+          <ProgressBar value={stats.tauxConformite} color={tauxColor} className="mt-3" />
+        </Card>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <p className="text-xs text-slate-400 mb-1">MTTR NC (30j)</p>
-            <p className="text-xl font-bold text-blue-400">
-              {stats.mttrHeures !== null ? `${stats.mttrHeures}h` : '—'}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">Temps moyen de cloture</p>
-          </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <p className="text-xs text-slate-400 mb-1">Taux rupture APLS</p>
-            <p className="text-xl font-bold text-orange-400">
-              {stats.tauxRuptureAPLS !== null ? `${stats.tauxRuptureAPLS}%` : '—'}
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">Objectif moins de 5%</p>
-          </div>
+          <Stat
+            align="left"
+            label="MTTR NC (30j)"
+            value={stats.mttrHeures !== null ? `${stats.mttrHeures}h` : '—'}
+            color={COLORS.info}
+            hint="Temps moyen de cloture"
+          />
+          <Stat
+            align="left"
+            label="Taux rupture APLS"
+            value={stats.tauxRuptureAPLS !== null ? `${stats.tauxRuptureAPLS}%` : '—'}
+            color={COLORS.orange}
+            hint="Objectif moins de 5%"
+          />
         </div>
 
         {stats.scoresSBAM.length > 0 && (
@@ -206,17 +202,14 @@ export default function DashboardPage() {
             </h2>
             <div className="space-y-2">
               {stats.scoresSBAM.map((v, i) => (
-                <div
-                  key={v.profileId}
-                  className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"
-                >
+                <Card key={v.profileId} className="flex items-center justify-between">
                   <span className="text-sm">
                     #{i + 1} {profileNames[v.profileId] || v.profileId}
                   </span>
-                  <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full">
+                  <Badge tone="success">
                     {v.score}% ({v.fait}/{v.total})
-                  </span>
-                </div>
+                  </Badge>
+                </Card>
               ))}
             </div>
           </div>
@@ -230,17 +223,9 @@ export default function DashboardPage() {
                 .slice()
                 .sort((a, b) => a.tauxConformite - b.tauxConformite)
                 .map((c) => {
-                  const color =
-                    c.tauxConformite >= 90
-                      ? '#10b981'
-                      : c.tauxConformite >= 80
-                      ? '#f97316'
-                      : '#ef4444';
+                  const color = conformiteColor(c.tauxConformite);
                   return (
-                    <div
-                      key={c.checklistId}
-                      className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"
-                    >
+                    <Card key={c.checklistId}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-slate-300">
                           {CIRCUIT_TITLES[c.checklistId] || c.checklistId}
@@ -249,13 +234,8 @@ export default function DashboardPage() {
                           {c.tauxConformite}% ({c.fait}/{c.total})
                         </span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full transition-all"
-                          style={{ width: `${c.tauxConformite}%`, backgroundColor: color }}
-                        />
-                      </div>
-                    </div>
+                      <ProgressBar value={c.tauxConformite} color={color} size="sm" />
+                    </Card>
                   );
                 })}
             </div>
@@ -263,18 +243,9 @@ export default function DashboardPage() {
         )}
 
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-emerald-400">{stats.faitToday}</p>
-            <p className="text-xs text-slate-500 mt-1">Fait</p>
-          </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-red-400">{stats.nonFaitToday}</p>
-            <p className="text-xs text-slate-500 mt-1">Non fait</p>
-          </div>
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold text-amber-400">{stats.ecartToday}</p>
-            <p className="text-xs text-slate-500 mt-1">Ecart</p>
-          </div>
+          <Stat value={stats.faitToday} label="Fait" color={COLORS.success} />
+          <Stat value={stats.nonFaitToday} label="Non fait" color={COLORS.danger} />
+          <Stat value={stats.ecartToday} label="Ecart" color={COLORS.warning} />
         </div>
 
         {isToday && (
@@ -284,15 +255,12 @@ export default function DashboardPage() {
             </h2>
             <div className="grid grid-cols-3 gap-3">
               {(['CRITIQUE', 'MAJEURE', 'MINEURE'] as const).map((g) => (
-                <div
+                <Stat
                   key={g}
-                  className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-center"
-                >
-                  <p className="text-2xl font-bold" style={{ color: GRAVITE_COLORS[g] }}>
-                    {stats.ncOuvertesParGravite[g]}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">{GRAVITE_LABELS[g]}</p>
-                </div>
+                  value={stats.ncOuvertesParGravite[g]}
+                  label={GRAVITE_LABELS[g]}
+                  color={GRAVITE_COLORS[g]}
+                />
               ))}
             </div>
           </div>
@@ -307,17 +275,12 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {stats.topZonesRisque.map((z, i) => (
-                <div
-                  key={z.zoneId}
-                  className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"
-                >
+                <Card key={z.zoneId} className="flex items-center justify-between">
                   <span className="text-sm">
                     #{i + 1} {zoneNames[z.zoneId] || z.zoneId}
                   </span>
-                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full">
-                    {z.count} NC
-                  </span>
-                </div>
+                  <Badge tone="danger">{z.count} NC</Badge>
+                </Card>
               ))}
             </div>
           )}
