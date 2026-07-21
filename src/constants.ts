@@ -139,6 +139,27 @@ export const FREQUENCIES = {
 
 export type Frequency = (typeof FREQUENCIES)[keyof typeof FREQUENCIES];
 
+// ---------- SHIFTS (tranches horaires) ----------
+export const SHIFTS = {
+  MATIN: 'MATIN',
+  SOIR: 'SOIR',
+} as const;
+
+export type Shift = (typeof SHIFTS)[keyof typeof SHIFTS];
+
+export const SHIFT_LABELS: Record<Shift, string> = {
+  MATIN: 'Matin',
+  SOIR: 'Soir',
+};
+
+export const POLITIQUES_RETARD = {
+  BLOCAGE: 'BLOCAGE',
+  RETARD: 'RETARD',
+  NON_FAIT_AUTO: 'NON_FAIT_AUTO',
+} as const;
+
+export type PolitiqueRetard = (typeof POLITIQUES_RETARD)[keyof typeof POLITIQUES_RETARD];
+
 // ---------- APPWRITE : IDs de base et collections ----------
 export const APPWRITE_DATABASE_ID = 'hyperclean_pro';
 
@@ -152,6 +173,7 @@ export const COLLECTIONS = {
   NON_CONFORMITES: 'non_conformites',
   CAPA: 'capa',
   AUDIT_LOG: 'audit_log',
+  SETTINGS: 'settings',
 } as const;
 
 // ---------- DEPARTEMENTS / RAYONS (correspond aux Teams Appwrite) ----------
