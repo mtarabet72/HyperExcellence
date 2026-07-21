@@ -52,12 +52,21 @@ export function Label({
   );
 }
 
-export function Input({
-  on = 'nested',
-  size = 'md',
-  className = '',
-  ...props
-}: InputHTMLAttributes<HTMLInputElement> & { on?: On; size?: FieldSize }) {
+// `size` natif (numerique) est ecarte : on reutilise ce nom pour l'echelle du design system.
+type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
+  on?: On;
+  size?: FieldSize;
+};
+type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  on?: On;
+  size?: FieldSize;
+};
+type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> & {
+  on?: On;
+  size?: FieldSize;
+};
+
+export function Input({ on = 'nested', size = 'md', className = '', ...props }: InputProps) {
   return (
     <input className={`${BASE} ${SURFACE[on]} ${FIELD_SIZES[size]} ${className}`} {...props} />
   );
@@ -68,7 +77,7 @@ export function Textarea({
   size = 'md',
   className = '',
   ...props
-}: TextareaHTMLAttributes<HTMLTextAreaElement> & { on?: On; size?: FieldSize }) {
+}: TextareaProps) {
   return (
     <textarea
       className={`${BASE} ${SURFACE[on]} ${FIELD_SIZES[size]} ${className}`}
@@ -77,12 +86,7 @@ export function Textarea({
   );
 }
 
-export function Select({
-  on = 'nested',
-  size = 'md',
-  className = '',
-  ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & { on?: On; size?: FieldSize }) {
+export function Select({ on = 'nested', size = 'md', className = '', ...props }: SelectProps) {
   return (
     <select className={`${BASE} ${SURFACE[on]} ${FIELD_SIZES[size]} ${className}`} {...props} />
   );
