@@ -13,6 +13,8 @@ export interface PendingExecution {
   photoAfterUrl?: string | null; // URL Appwrite si uploadée en ligne
   photoBlob?: Blob | null; // photo brute si prise hors-ligne, à uploader au sync
   executedAt: string;
+  shift?: string | null; // shift actif au moment de l'exécution (figé)
+  enRetard?: boolean | null; // heure cible de la tâche dépassée
   createdLocallyAt: number;
 }
 
