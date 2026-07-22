@@ -17,6 +17,7 @@ export interface TaskTemplate {
   default_gravite: Gravite;
   sort_order: number;
   is_active: boolean;
+  execution_time?: string | null; // heure cible "HH:MM", null = pas de contrainte
 }
 
 export async function getTasksForChecklist(checklistId: string): Promise<TaskTemplate[]> {
@@ -119,6 +120,7 @@ export async function submitTaskExecution(
   });
   return { $id: offlineId, offlineId, wasOffline: true };
 }
+
 function startOfDayISO(dateStr?: string): string {
   const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
   d.setHours(0, 0, 0, 0);
