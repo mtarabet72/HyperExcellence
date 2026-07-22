@@ -2,6 +2,7 @@
 // HyperExcellence - Tableau de bord KPI Admin (Circuit 10)
 // Converti a TanStack Query (Phase 1 - Performance)
 // Migre vers le Design System (Phase 2)
+// Filtrage par shift (Phase 6)
 // ============================================================
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +17,8 @@ import {
   GRAVITE_LABELS,
   GRAVITE_COLORS,
   CIRCUIT_TITLES,
+  SHIFT_LABELS,
+  Shift,
 } from '../constants';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -29,9 +32,9 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function fetchDashboardData(selectedDate: string) {
+async function fetchDashboardData(selectedDate: string, shift: Shift | null) {
   const [dashboardStats, zonesResult, profilesResult, overdue] = await Promise.all([
-    getDashboardStats(selectedDate),
+    getDashboardStats(selectedDate, shift),
     databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.ZONES, [Query.limit(200)]),
     databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
     listOverdueCapas(),
@@ -53,18 +56,19 @@ async function fetchDashboardData(selectedDate: string) {
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [shiftFilter, setShiftFilter] = useState<Shift | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const isToday = selectedDate === todayISO();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', selectedDate],
-    queryFn: () => fetchDashboardData(selectedDate),
+    queryKey: ['dashboard', selectedDate, shiftFilter],
+    queryFn: () => fetchDashboardData(selectedDate, shiftFilter),
     staleTime: 60 * 1000, // 1 min : le dashboard bouge plus vite que le reste
   });
 
   function refresh() {
-    queryClient.invalidateQueries({ queryKey: ['dashboard', selectedDate] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard', selectedDate, shiftFilter] });
   }
 
   async function handleExportPDF() {
@@ -120,6 +124,33 @@ export default function DashboardPage() {
               </button>
             )}
           </div>
+
+          <div className="flex gap-1 mt-3">
+            <Button
+              variant={shiftFilter === null ? 'primary' : 'ghost'}
+              size="xs"
+              className="flex-1"
+              onClick={() => setShiftFilter(null)}
+            >
+              Journee
+            </Button>
+            <Button
+              variant={shiftFilter === 'MATIN' ? 'primary' : 'ghost'}
+              size="xs"
+              className="flex-1"
+              onClick={() => setShiftFilter('MATIN')}
+            >
+              {SHIFT_LABELS.MATIN}
+            </Button>
+            <Button
+              variant={shiftFilter === 'SOIR' ? 'primary' : 'ghost'}
+              size="xs"
+              className="flex-1"
+              onClick={() => setShiftFilter('SOIR')}
+            >
+              {SHIFT_LABELS.SOIR}
+            </Button>
+          </div>
         </Card>
 
         <Button
@@ -163,6 +194,7 @@ export default function DashboardPage() {
         <Card padding="md">
           <p className="text-xs text-slate-400 mb-2">
             Taux de conformite —{' '}
+            {shiftFilter ? `Tranche ${SHIFT_LABELS[shiftFilter]}` : 'Journee complete'} ·{' '}
             {isToday
               ? "Aujourd'hui"
               : new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')}
@@ -177,6 +209,30 @@ export default function DashboardPage() {
           </div>
           <ProgressBar value={stats.tauxConformite} color={tauxColor} className="mt-3" />
         </Card>
+
+        {/* ---------- Comparaison des deux tranches ---------- */}
+        {shiftFilter === null && (
+          <div>
+            <h2 className="text-sm font-semibold text-slate-300 mb-2">Comparaison des tranches</h2>
+            <div className="space-y-2">
+              {(['MATIN', 'SOIR'] as Shift[]).map((s) => {
+                const st = stats.parShift[s];
+                const color = conformiteColor(st.tauxConformite);
+                return (
+                  <Card key={s}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-slate-300">{SHIFT_LABELS[s]}</span>
+                      <span className="text-xs font-semibold" style={{ color }}>
+                        {st.total > 0 ? `${st.tauxConformite}% (${st.fait}/${st.total})` : '—'}
+                      </span>
+                    </div>
+                    <ProgressBar value={st.tauxConformite} color={color} size="sm" />
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Stat
@@ -242,10 +298,11 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           <Stat value={stats.faitToday} label="Fait" color={COLORS.success} />
           <Stat value={stats.nonFaitToday} label="Non fait" color={COLORS.danger} />
           <Stat value={stats.ecartToday} label="Ecart" color={COLORS.warning} />
+          <Stat value={stats.retardsCount} label="Retards" color={COLORS.orange} />
         </div>
 
         {isToday && (
