@@ -64,6 +64,7 @@ export const translations = {
   language: { fr: 'Langue', ar: 'اللغة' },
   french: { fr: 'Français', ar: 'الفرنسية' },
   arabic: { fr: 'Arabe', ar: 'العربية' },
+
   // ---------- Checklist ----------
   circuitLabel: { fr: 'Circuit', ar: 'المسار' },
   loadingTasks: { fr: 'Chargement des tâches...', ar: 'جاري تحميل المهام...' },
@@ -86,6 +87,7 @@ export const translations = {
   pendingSync: { fr: 'en attente — Sync', ar: 'بانتظار المزامنة' },
   syncing: { fr: 'Synchronisation...', ar: 'جاري المزامنة...' },
   tasksLabel: { fr: 'tâches', ar: 'مهام' },
+
   // ---------- Shifts (tranches horaires) ----------
   currentShift: { fr: 'Tranche en cours', ar: 'الفترة الحالية' },
   shift_MATIN: { fr: 'Matin', ar: 'صباح' },
@@ -93,6 +95,12 @@ export const translations = {
   viewThisShift: { fr: 'Ce shift', ar: 'هذه الفترة' },
   viewFullDay: { fr: 'Journée', ar: 'اليوم كامل' },
   executedLabel: { fr: 'Exécutée', ar: 'منجزة' },
+
+  // ---------- Heure cible & retard ----------
+  targetTime: { fr: 'Heure cible', ar: 'الوقت المحدد' },
+  lateBadge: { fr: 'En retard', ar: 'متأخرة' },
+  blockedPastTime: { fr: 'Heure dépassée — enregistrement bloqué', ar: 'انتهى الوقت - التسجيل مغلق' },
+  mustReportLate: { fr: 'Heure dépassée — à déclarer en écart', ar: 'انتهى الوقت - يجب التصريح بعدم المطابقة' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
