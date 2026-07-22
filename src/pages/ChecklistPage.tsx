@@ -32,6 +32,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Label, Select, Textarea } from '../components/ui/Field';
+import { getAppConfig, getCurrentShift, isPastExecutionTime, DEFAULT_CONFIG } from '../lib/settings';
 
 interface CircuitOption {
   checklistId: string;
