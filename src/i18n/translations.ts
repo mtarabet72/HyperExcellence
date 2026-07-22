@@ -86,6 +86,13 @@ export const translations = {
   pendingSync: { fr: 'en attente — Sync', ar: 'بانتظار المزامنة' },
   syncing: { fr: 'Synchronisation...', ar: 'جاري المزامنة...' },
   tasksLabel: { fr: 'tâches', ar: 'مهام' },
+  // ---------- Shifts (tranches horaires) ----------
+  currentShift: { fr: 'Tranche en cours', ar: 'الفترة الحالية' },
+  shift_MATIN: { fr: 'Matin', ar: 'صباح' },
+  shift_SOIR: { fr: 'Soir', ar: 'مساء' },
+  viewThisShift: { fr: 'Ce shift', ar: 'هذه الفترة' },
+  viewFullDay: { fr: 'Journée', ar: 'اليوم كامل' },
+  executedLabel: { fr: 'Exécutée', ar: 'منجزة' },
 } as const;
 
 export type TranslationKey = keyof typeof translations;
