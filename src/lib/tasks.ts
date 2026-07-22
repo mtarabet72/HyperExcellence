@@ -61,6 +61,10 @@ export interface SubmitTaskExecutionInput {
   comment?: string;
   photoAfterUrl?: string;
   photoBlob?: Blob;
+  /** Shift actif au moment de l'execution (fige, jamais recalcule ensuite). */
+  shift?: string;
+  /** Vrai si l'heure cible de la tache etait depassee. */
+  enRetard?: boolean;
 }
 
 export interface SubmitResult {
@@ -88,6 +92,8 @@ export async function submitTaskExecution(
           comment: input.comment || null,
           photo_after: input.photoAfterUrl || null,
           executed_at: executedAt,
+          shift: input.shift || null,
+          en_retard: input.enRetard ?? false,
         }
       );
       return { $id: doc.$id, wasOffline: false };
@@ -107,6 +113,8 @@ export async function submitTaskExecution(
     photoAfterUrl: input.photoAfterUrl || null,
     photoBlob: input.photoBlob || null,
     executedAt,
+    shift: input.shift || null,
+    enRetard: input.enRetard ?? false,
     createdLocallyAt: Date.now(),
   });
   return { $id: offlineId, offlineId, wasOffline: true };
