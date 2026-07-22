@@ -52,6 +52,8 @@ export async function syncPendingData(): Promise<{ synced: number; failed: numbe
             photo_after: photoUrl,
             executed_at: exec.executedAt,
             offline_id: exec.offlineId,
+            shift: exec.shift || null,
+            en_retard: exec.enRetard ?? false,
           }
         );
         realId = created.$id;
