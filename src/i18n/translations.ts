@@ -31,6 +31,7 @@ export const translations = {
   nonConformites: { fr: 'Non Conformités', ar: 'حالات عدم المطابقة' },
   excelExport: { fr: 'Export Excel', ar: 'تصدير إكسل' },
   manageEmployees: { fr: 'Gérer les employés', ar: 'إدارة الموظفين' },
+  manageTasks: { fr: 'Gérer les tâches', ar: 'إدارة المهام' },
 
   // ---------- Rôles ----------
   role_ADMIN: { fr: 'Administrateur QHSE', ar: 'مسؤول الجودة والسلامة' },
