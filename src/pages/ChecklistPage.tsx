@@ -22,7 +22,6 @@ import {
   GRAVITE_COLORS,
   ROLES,
   ROLES_SECTOR_WIDE,
-  SHIFT_LABELS,
   Shift,
   getSectorForDepartment,
 } from '../constants';
@@ -436,9 +435,9 @@ export default function ChecklistPage() {
 
         <Card className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-400">Tranche en cours</p>
+            <p className="text-xs text-slate-400">{t('currentShift' as any)}</p>
             <p className="text-sm font-semibold">
-              {SHIFT_LABELS[currentShift]}{' '}
+              {t(`shift_${currentShift}` as any)}{' '}
               <span className="text-xs font-normal text-slate-500">
                 (
                 {currentShift === 'MATIN'
@@ -454,14 +453,14 @@ export default function ChecklistPage() {
               size="xs"
               onClick={() => setViewMode('shift')}
             >
-              Ce shift
+              {t('viewThisShift' as any)}
             </Button>
             <Button
               variant={viewMode === 'day' ? 'primary' : 'ghost'}
               size="xs"
               onClick={() => setViewMode('day')}
             >
-              Journée
+              {t('viewFullDay' as any)}
             </Button>
           </div>
         </Card>
@@ -534,7 +533,8 @@ export default function ChecklistPage() {
                       {viewMode === 'day' && execInfo?.shift && (
                         <div className="mt-1">
                           <Badge>
-                            Exécutée · {SHIFT_LABELS[execInfo.shift as Shift] || execInfo.shift}
+                            {t('executedLabel' as any)} ·{' '}
+                            {t(`shift_${execInfo.shift}` as any)}
                           </Badge>
                         </div>
                       )}
