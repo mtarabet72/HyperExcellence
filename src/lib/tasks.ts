@@ -119,3 +119,69 @@ export async function submitTaskExecution(
   });
   return { $id: offlineId, offlineId, wasOffline: true };
 }
+function startOfDayISO(dateStr?: string): string {
+  const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function endOfDayISO(dateStr?: string): string {
+  const d = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
+export interface ExecutedTaskInfo {
+  status: TaskStatus;
+  enRetard: boolean;
+  shift: string | null;
+}
+
+/**
+ * Retourne les taches deja executees sur une zone, indexees par task_id.
+ * - `shift` renseigne : uniquement les executions de ce shift.
+ * - `shift` null      : toutes les executions de la journee (vue globale).
+ * En cas de doublon, la plus recente l'emporte.
+ */
+export async function getExecutionsForShift(
+  zoneId: string,
+  shift: string | null,
+  dateStr?: string
+): Promise<Record<string, ExecutedTaskInfo>> {
+  try {
+    const filters = [
+      Query.equal('zone_id', zoneId),
+      Query.greaterThanEqual('executed_at', startOfDayISO(dateStr)),
+      Query.lessThanEqual('executed_at', endOfDayISO(dateStr)),
+      Query.limit(500),
+    ];
+    if (shift) filters.push(Query.equal('shift', shift));
+
+    const result = await databases.listDocuments(
+      APPWRITE_DATABASE_ID,
+      COLLECTIONS.TASK_EXECUTIONS,
+      filters
+    );
+
+    const byTask: Record<string, ExecutedTaskInfo & { at: string }> = {};
+    for (const doc of result.documents as any[]) {
+      const prev = byTask[doc.task_id];
+      if (!prev || new Date(doc.executed_at) > new Date(prev.at)) {
+        byTask[doc.task_id] = {
+          status: doc.status,
+          enRetard: !!doc.en_retard,
+          shift: doc.shift || null,
+          at: doc.executed_at,
+        };
+      }
+    }
+
+    const out: Record<string, ExecutedTaskInfo> = {};
+    for (const [taskId, info] of Object.entries(byTask)) {
+      out[taskId] = { status: info.status, enRetard: info.enRetard, shift: info.shift };
+    }
+    return out;
+  } catch {
+    return {}; // hors-ligne ou erreur : on repart d'un etat vide, sans bloquer la checklist
+  }
+}
