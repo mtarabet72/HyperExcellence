@@ -2,25 +2,35 @@
 // HyperExcellence - Ecran Checklist (multi-circuits, secteurs, offline, bilingue)
 // Chargement des taches converti a TanStack Query (Phase 1)
 // Migre vers le Design System (Phase 2)
+// Gestion des shifts Matin/Soir (Phase 6)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getTasksForChecklist, submitTaskExecution, TaskTemplate } from '../lib/tasks';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getTasksForChecklist,
+  submitTaskExecution,
+  getExecutionsForShift,
+  TaskTemplate,
+} from '../lib/tasks';
 import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
 import { offlineDb, generateOfflineId } from '../lib/offlineDb';
 import { syncPendingData, countPending } from '../lib/offlineSync';
+import { getAppConfig, getCurrentShift, DEFAULT_CONFIG } from '../lib/settings';
 import {
   TaskStatus,
   GRAVITE_COLORS,
   ROLES,
   ROLES_SECTOR_WIDE,
+  SHIFT_LABELS,
+  Shift,
   getSectorForDepartment,
 } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Label, Select, Textarea } from '../components/ui/Field';
 
@@ -169,6 +179,7 @@ const STATUS_VARIANT: Record<string, 'success' | 'danger' | 'primary'> = {
 export default function ChecklistPage() {
   const { profile } = useAuth();
   const { t, language } = useLanguage();
+  const queryClient = useQueryClient();
 
   const visibleCircuits = (() => {
     if (!profile) return [];
@@ -187,12 +198,31 @@ export default function ChecklistPage() {
     visibleCircuits[0] || null
   );
 
+  // ---------- Configuration (shifts, politique de retard) ----------
+  const { data: config = DEFAULT_CONFIG } = useQuery({
+    queryKey: ['app-config'],
+    queryFn: getAppConfig,
+    staleTime: 10 * 60 * 1000, // 10 min : la config bouge rarement
+  });
+
+  const currentShift: Shift = getCurrentShift(config);
+  const [viewMode, setViewMode] = useState<'shift' | 'day'>('shift');
+  const viewShift = viewMode === 'shift' ? currentShift : null;
+
   // ---------- Chargement des taches via TanStack Query ----------
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', selectedCircuit?.checklistId],
     queryFn: () => getTasksForChecklist(selectedCircuit!.checklistId),
     enabled: !!selectedCircuit,
     staleTime: 5 * 60 * 1000, // 5 min : les taches d'un circuit changent rarement
+  });
+
+  // ---------- Executions deja enregistrees (shift courant ou journee) ----------
+  const { data: serverExecutions = {} } = useQuery({
+    queryKey: ['executions', selectedCircuit?.zoneId, viewShift],
+    queryFn: () => getExecutionsForShift(selectedCircuit!.zoneId, viewShift),
+    enabled: !!selectedCircuit,
+    staleTime: 30 * 1000,
   });
 
   const [completed, setCompleted] = useState<Record<string, TaskStatus>>({});
@@ -217,6 +247,11 @@ export default function ChecklistPage() {
     NON_APPLICABLE: t('status_NON_APPLICABLE' as any),
   };
 
+  /** Statut affiche : etat local (juste enregistre) sinon etat serveur. */
+  function statusFor(taskId: string): TaskStatus | undefined {
+    return completed[taskId] || (serverExecutions[taskId]?.status as TaskStatus | undefined);
+  }
+
   function circuitTitle(c: CircuitOption) {
     return language === 'ar' ? c.titleAr : c.title;
   }
@@ -234,6 +269,7 @@ export default function ChecklistPage() {
     try {
       await syncPendingData();
       await refreshPendingCount();
+      queryClient.invalidateQueries({ queryKey: ['executions'] });
     } finally {
       setIsSyncing(false);
     }
@@ -258,12 +294,12 @@ export default function ChecklistPage() {
     };
   }, []);
 
-  // Reinitialise l'etat local (coche/photos) a chaque changement de circuit
+  // Reinitialise l'etat local (coche/photos) a chaque changement de circuit ou de vue
   useEffect(() => {
     setCompleted({});
     setPhotoUrls({});
     setPhotoBlobs({});
-  }, [selectedCircuit?.checklistId]);
+  }, [selectedCircuit?.checklistId, viewMode]);
 
   async function handlePhotoSelected(task: TaskTemplate, e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -316,6 +352,7 @@ export default function ChecklistPage() {
         status,
         photoAfterUrl: photoUrl,
         photoBlob,
+        shift: currentShift, // toujours le shift reel, meme en vue "journee"
       });
 
       if (status !== 'FAIT') {
@@ -345,6 +382,7 @@ export default function ChecklistPage() {
       setNcStatus(null);
       setActionImmediate('');
       await refreshPendingCount();
+      queryClient.invalidateQueries({ queryKey: ['executions'] });
     } catch {
       alert(t('saveErrorAlert' as any));
     } finally {
@@ -360,7 +398,7 @@ export default function ChecklistPage() {
     saveExecution(task, ncStatus!);
   }
 
-  const doneCount = Object.keys(completed).length;
+  const doneCount = tasks.filter((tk) => !!statusFor(tk.$id)).length;
 
   if (visibleCircuits.length === 0) {
     return (
@@ -395,6 +433,38 @@ export default function ChecklistPage() {
             </button>
           )}
         </div>
+
+        <Card className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400">Tranche en cours</p>
+            <p className="text-sm font-semibold">
+              {SHIFT_LABELS[currentShift]}{' '}
+              <span className="text-xs font-normal text-slate-500">
+                (
+                {currentShift === 'MATIN'
+                  ? `${config.shift_matin_debut}–${config.shift_matin_fin}`
+                  : `${config.shift_soir_debut}–${config.shift_soir_fin}`}
+                )
+              </span>
+            </p>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              variant={viewMode === 'shift' ? 'primary' : 'ghost'}
+              size="xs"
+              onClick={() => setViewMode('shift')}
+            >
+              Ce shift
+            </Button>
+            <Button
+              variant={viewMode === 'day' ? 'primary' : 'ghost'}
+              size="xs"
+              onClick={() => setViewMode('day')}
+            >
+              Journée
+            </Button>
+          </div>
+        </Card>
 
         {visibleCircuits.length > 1 && (
           <div>
@@ -436,7 +506,8 @@ export default function ChecklistPage() {
         ) : (
           <div className="space-y-2">
             {tasks.map((task) => {
-              const status = completed[task.$id];
+              const status = statusFor(task.$id);
+              const execInfo = serverExecutions[task.$id];
               const isAskingNC = ncTaskId === task.$id;
               const hasPhoto = !!photoUrls[task.$id];
               const isLocalPhoto = !!photoBlobs[task.$id];
@@ -459,6 +530,13 @@ export default function ChecklistPage() {
                         <p className="text-xs text-amber-400 mt-0.5">
                           📷 {t('photoRequired' as any)}
                         </p>
+                      )}
+                      {viewMode === 'day' && execInfo?.shift && (
+                        <div className="mt-1">
+                          <Badge>
+                            Exécutée · {SHIFT_LABELS[execInfo.shift as Shift] || execInfo.shift}
+                          </Badge>
+                        </div>
                       )}
                     </div>
                   </div>
