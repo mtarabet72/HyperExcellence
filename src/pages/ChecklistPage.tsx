@@ -2,7 +2,7 @@
 // HyperExcellence - Ecran Checklist (multi-circuits, secteurs, offline, bilingue)
 // Chargement des taches converti a TanStack Query (Phase 1)
 // Migre vers le Design System (Phase 2)
-// Gestion des shifts Matin/Soir (Phase 6)
+// Gestion des shifts Matin/Soir + heure cible (Phase 6)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,7 +16,12 @@ import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
 import { offlineDb, generateOfflineId } from '../lib/offlineDb';
 import { syncPendingData, countPending } from '../lib/offlineSync';
-import { getAppConfig, getCurrentShift, DEFAULT_CONFIG } from '../lib/settings';
+import {
+  getAppConfig,
+  getCurrentShift,
+  isPastExecutionTime,
+  DEFAULT_CONFIG,
+} from '../lib/settings';
 import {
   TaskStatus,
   GRAVITE_COLORS,
@@ -32,7 +37,6 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Label, Select, Textarea } from '../components/ui/Field';
-import { getAppConfig, getCurrentShift, isPastExecutionTime, DEFAULT_CONFIG } from '../lib/settings';
 
 interface CircuitOption {
   checklistId: string;
@@ -344,6 +348,7 @@ export default function ChecklistPage() {
     try {
       const photoBlob = photoBlobs[task.$id];
       const photoUrl = !photoBlob ? photoUrls[task.$id] : undefined;
+      const isLate = isPastExecutionTime(task.execution_time || null);
 
       const result = await submitTaskExecution({
         zoneId: selectedCircuit.zoneId,
@@ -353,6 +358,7 @@ export default function ChecklistPage() {
         photoAfterUrl: photoUrl,
         photoBlob,
         shift: currentShift, // toujours le shift reel, meme en vue "journee"
+        enRetard: isLate,
       });
 
       if (status !== 'FAIT') {
@@ -515,6 +521,14 @@ export default function ChecklistPage() {
               const displayLabel =
                 language === 'ar' && task.label_ar ? task.label_ar : task.label;
 
+              const targetTime = task.execution_time || null;
+              const isLate = isPastExecutionTime(targetTime);
+              const policy = config.politique_retard;
+              // BLOCAGE : plus rien n'est enregistrable une fois l'heure passee
+              const isBlocked = isLate && policy === 'BLOCAGE' && !status;
+              // NON_FAIT_AUTO : on interdit "Fait", la tache doit partir en ecart/NC
+              const forbidFait = isLate && policy === 'NON_FAIT_AUTO' && !status;
+
               return (
                 <Card key={task.$id}>
                   <div className="flex items-start gap-2">
@@ -526,6 +540,25 @@ export default function ChecklistPage() {
                       <p className="text-sm font-medium">
                         {task.task_number}. {displayLabel}
                       </p>
+                      {targetTime && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          ⏱ {t('targetTime' as any)} : {targetTime}
+                        </p>
+                      )}
+                      {isLate && !status && (
+                        <p className="text-xs text-red-400 mt-0.5">
+                          {policy === 'BLOCAGE'
+                            ? t('blockedPastTime' as any)
+                            : policy === 'NON_FAIT_AUTO'
+                              ? t('mustReportLate' as any)
+                              : t('lateBadge' as any)}
+                        </p>
+                      )}
+                      {execInfo?.enRetard && (
+                        <div className="mt-1">
+                          <Badge tone="danger">{t('lateBadge' as any)}</Badge>
+                        </div>
+                      )}
                       {task.requires_photo && !hasPhoto && (
                         <p className="text-xs text-amber-400 mt-0.5">
                           📷 {t('photoRequired' as any)}
@@ -609,7 +642,11 @@ export default function ChecklistPage() {
                           variant={status === s ? STATUS_VARIANT[s] : 'ghost'}
                           className="flex-1 transition-colors"
                           onClick={() => handleStatusClick(task, s)}
-                          disabled={savingTaskId === task.$id}
+                          disabled={
+                            savingTaskId === task.$id ||
+                            isBlocked ||
+                            (forbidFait && s === 'FAIT')
+                          }
                         >
                           {statusLabels[s]}
                         </Button>
