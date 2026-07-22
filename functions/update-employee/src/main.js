@@ -2,6 +2,7 @@
 // HyperExcellence - Appwrite Function : modification d'employe
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
 // + Creation NC / Qualification CAPA / Verification CAPA
+// + CRUD des taches (Phase 6)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -307,6 +308,7 @@ export default async ({ req, res, log, error }) => {
       log('CAPA verifiee et cloturee via Function: ' + capaId);
       return res.json({ success: true });
     }
+
     // ---------- Branche cloture directe NC (ADMIN uniquement) ----------
     if (body.action === 'close_nc') {
       const callerUserId = req.headers['x-appwrite-user-id'];
@@ -345,6 +347,156 @@ export default async ({ req, res, log, error }) => {
       log('NC cloturee directement via Function: ' + ncId);
       return res.json({ success: true });
     }
+
+    // ---------- Branche CRUD taches (ADMIN uniquement) ----------
+    if (
+      body.action === 'create_task' ||
+      body.action === 'update_task' ||
+      body.action === 'toggle_task'
+    ) {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile || callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve aux administrateurs.' }, 403);
+      }
+
+      const GRAVITES_VALIDES = ['MINEURE', 'MAJEURE', 'CRITIQUE'];
+
+      // Verifie le format "HH:MM" d'une heure cible.
+      function heureValide(v) {
+        return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+      }
+
+      // ----- Creation -----
+      if (body.action === 'create_task') {
+        const {
+          checklistId,
+          taskNumber,
+          label,
+          labelAr,
+          defaultGravite,
+          sortOrder,
+          requiresPhoto,
+          requiresTemperature,
+          executionTime,
+        } = body;
+
+        if (!checklistId || !label || taskNumber === undefined) {
+          return res.json({ error: 'Champs requis manquants.' }, 400);
+        }
+        if (!GRAVITES_VALIDES.includes(defaultGravite)) {
+          return res.json({ error: 'Gravite invalide.' }, 400);
+        }
+        if (executionTime && !heureValide(executionTime)) {
+          return res.json({ error: 'Heure cible invalide (format HH:MM).' }, 400);
+        }
+
+        const task = await databases.createDocument(DB_ID, 'task_templates', ID.unique(), {
+          checklist_id: checklistId,
+          task_number: Number(taskNumber),
+          label,
+          label_ar: labelAr || null,
+          requires_photo: !!requiresPhoto,
+          requires_temperature: !!requiresTemperature,
+          default_gravite: defaultGravite,
+          sort_order: sortOrder !== undefined ? Number(sortOrder) : Number(taskNumber),
+          is_active: true,
+          execution_time: executionTime || null,
+        });
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: 'TACHE_CREEE',
+          entity_type: 'task_template',
+          entity_id: task.$id,
+          payload: JSON.stringify({ checklistId, taskNumber, label }),
+        });
+
+        log('Tache creee: ' + task.$id);
+        return res.json({ success: true, taskId: task.$id });
+      }
+
+      // ----- Modification -----
+      if (body.action === 'update_task') {
+        const {
+          taskId,
+          label,
+          labelAr,
+          defaultGravite,
+          taskNumber,
+          sortOrder,
+          requiresPhoto,
+          requiresTemperature,
+          executionTime,
+        } = body;
+
+        if (!taskId) {
+          return res.json({ error: 'taskId manquant.' }, 400);
+        }
+        if (defaultGravite !== undefined && !GRAVITES_VALIDES.includes(defaultGravite)) {
+          return res.json({ error: 'Gravite invalide.' }, 400);
+        }
+        if (executionTime && !heureValide(executionTime)) {
+          return res.json({ error: 'Heure cible invalide (format HH:MM).' }, 400);
+        }
+
+        const payload = {};
+        if (label !== undefined) payload.label = label;
+        if (labelAr !== undefined) payload.label_ar = labelAr || null;
+        if (defaultGravite !== undefined) payload.default_gravite = defaultGravite;
+        if (taskNumber !== undefined) payload.task_number = Number(taskNumber);
+        if (sortOrder !== undefined) payload.sort_order = Number(sortOrder);
+        if (requiresPhoto !== undefined) payload.requires_photo = !!requiresPhoto;
+        if (requiresTemperature !== undefined)
+          payload.requires_temperature = !!requiresTemperature;
+        // chaine vide = on efface l'heure cible
+        if (executionTime !== undefined) payload.execution_time = executionTime || null;
+
+        await databases.updateDocument(DB_ID, 'task_templates', taskId, payload);
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: 'TACHE_MODIFIEE',
+          entity_type: 'task_template',
+          entity_id: taskId,
+          payload: JSON.stringify(payload),
+        });
+
+        log('Tache modifiee: ' + taskId);
+        return res.json({ success: true, taskId });
+      }
+
+      // ----- Activation / desactivation -----
+      if (body.action === 'toggle_task') {
+        const { taskId, isActive } = body;
+        if (!taskId || isActive === undefined) {
+          return res.json({ error: 'taskId ou isActive manquant.' }, 400);
+        }
+
+        await databases.updateDocument(DB_ID, 'task_templates', taskId, {
+          is_active: !!isActive,
+        });
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: isActive ? 'TACHE_REACTIVEE' : 'TACHE_DESACTIVEE',
+          entity_type: 'task_template',
+          entity_id: taskId,
+          payload: JSON.stringify({ isActive: !!isActive }),
+        });
+
+        log('Tache ' + (isActive ? 'reactivee' : 'desactivee') + ': ' + taskId);
+        return res.json({ success: true, taskId });
+      }
+    }
+
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
