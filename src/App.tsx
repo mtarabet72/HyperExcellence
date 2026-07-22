@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext';
 import { useLanguage } from './contexts/LanguageContext';
 import LoginPage from './pages/LoginPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
+import AdminTasksPage from './pages/AdminTasksPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
@@ -15,6 +16,7 @@ import { ROLES } from './constants';
 type View =
   | 'home'
   | 'employees'
+  | 'tasks'
   | 'checklist'
   | 'nonconformites'
   | 'dashboard'
@@ -61,6 +63,7 @@ function App() {
           </button>
         </div>
         {view === 'employees' && <AdminEmployeesPage />}
+        {view === 'tasks' && <AdminTasksPage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
         {view === 'dashboard' && <DashboardPage />}
@@ -166,6 +169,15 @@ function App() {
               className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
             >
               {t('manageEmployees')}
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('tasks')}
+              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('manageTasks')}
             </button>
           )}
         </div>
