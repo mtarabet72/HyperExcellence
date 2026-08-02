@@ -1,77 +1,125 @@
 // ============================================================
-// HyperExcellence - Heatmap magasin par département (Circuit 7)
+// HyperExcellence - Export Excel historique filtrable (Circuit 7)
 // Migre vers le Design System (Phase 2 - finalisation)
 // ============================================================
-import { useEffect, useState } from 'react';
-import { getHeatmapData, heatColor, DepartmentHeat } from '../lib/heatmap';
-import { DEPARTMENTS } from '../constants';
+import { useState } from 'react';
+import { generateExcelExport } from '../lib/excelExport';
+import { DEPARTMENTS, GRAVITES, GRAVITE_LABELS, Gravite } from '../constants';
+import { Button } from '../components/ui/Button';
+import { Label, Input, Select } from '../components/ui/Field';
 
-export default function HeatmapPage() {
-  const [data, setData] = useState<DepartmentHeat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
 
-  async function load() {
-    setIsLoading(true);
-    const result = await getHeatmapData();
-    setData(result);
-    setIsLoading(false);
-  }
+function daysAgoISO(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
-  useEffect(() => {
-    load();
-  }, []);
+export default function ExcelExportPage() {
+  const [dateDebut, setDateDebut] = useState(daysAgoISO(7));
+  const [dateFin, setDateFin] = useState(todayISO());
+  const [departmentId, setDepartmentId] = useState('');
+  const [gravite, setGravite] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
 
-  const dataByDept: Record<string, DepartmentHeat> = {};
-  for (const d of data) {
-    dataByDept[d.departmentId] = d;
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <p className="text-slate-400 text-sm">Chargement de la heatmap...</p>
-      </div>
-    );
+  async function handleExport() {
+    if (!dateDebut || !dateFin) {
+      alert('Les deux dates sont requises.');
+      return;
+    }
+    setIsExporting(true);
+    setResultMessage(null);
+    try {
+      const result = await generateExcelExport({
+        dateDebut,
+        dateFin,
+        departmentId: departmentId || undefined,
+        gravite: (gravite as Gravite) || undefined,
+      });
+      setResultMessage(
+        `Export généré : ${result.executionsCount} exécutions, ${result.ncCount} non conformités.`
+      );
+    } catch {
+      setResultMessage("Erreur lors de la génération de l'export.");
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
       <div className="max-w-xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Heatmap Magasin</h1>
-          <button onClick={load} className="text-xs text-slate-400">
-            ↻ Actualiser
-          </button>
-        </div>
-        <p className="text-xs text-slate-500">
-          Taux de conformité du jour par rayon · 🟢 ≥95% · 🟠 80-95% · 🔴 &lt;80% · ⬛ pas de
-          donnée aujourd'hui
+        <h1 className="text-xl font-bold">Export Excel Historique</h1>
+        <p className="text-sm text-slate-400">
+          Génère un fichier .xlsx avec deux feuilles : Exécutions et Non Conformités, selon la
+          période et les filtres choisis.
         </p>
 
-        <div className="grid grid-cols-2 gap-2">
-          {DEPARTMENTS.map((dept) => {
-            const heat = dataByDept[dept.id];
-            const taux = heat?.taux ?? -1;
-            const color = heatColor(taux);
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Date début</Label>
+              <Input
+                on="card"
+                type="date"
+                value={dateDebut}
+                onChange={(e) => setDateDebut(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Date fin</Label>
+              <Input
+                on="card"
+                type="date"
+                value={dateFin}
+                onChange={(e) => setDateFin(e.target.value)}
+              />
+            </div>
+          </div>
 
-            return (
-              <div
-                key={dept.id}
-                className="rounded-lg p-3 border"
-                style={{ backgroundColor: `${color}20`, borderColor: color }}
-              >
-                <p className="text-xs font-medium text-slate-200 leading-tight">{dept.name}</p>
-                <p className="text-lg font-bold mt-1" style={{ color }}>
-                  {taux >= 0 ? `${taux}%` : '—'}
-                </p>
-                {heat && (
-                  <p className="text-xs text-slate-500">
-                    {heat.fait}/{heat.total} tâches
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          <div>
+            <Label>Département (optionnel)</Label>
+            <Select
+              on="card"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+            >
+              <option value="">— Tous les départements —</option>
+              {DEPARTMENTS.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          <div>
+            <Label>Gravité NC (optionnel)</Label>
+            <Select on="card" value={gravite} onChange={(e) => setGravite(e.target.value)}>
+              <option value="">— Toutes les gravités —</option>
+              {Object.values(GRAVITES).map((g) => (
+                <option key={g} value={g}>
+                  {GRAVITE_LABELS[g]}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {resultMessage && <p className="text-xs text-emerald-400">{resultMessage}</p>}
+
+          <Button
+            variant="success"
+            size="md"
+            fullWidth
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? 'Génération...' : "📊 Générer l'export Excel"}
+          </Button>
         </div>
       </div>
     </div>
