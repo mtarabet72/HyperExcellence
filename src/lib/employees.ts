@@ -58,6 +58,12 @@ export async function listEmployees(): Promise<Profile[]> {
   return result.documents as unknown as Profile[];
 }
 
+/** Employes eligibles a la permanence (ADMIN + RESPONSABLE_RH), pour l'ecran Admin. */
+export async function listPermanenceEligible(): Promise<Profile[]> {
+  const all = await listEmployees();
+  return all.filter((e) => e.role === 'ADMIN' || e.role === 'RESPONSABLE_RH');
+}
+
 export interface UpdateEmployeeInput {
   fullName?: string;
   role?: UserRole;
