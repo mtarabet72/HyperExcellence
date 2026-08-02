@@ -1,10 +1,12 @@
 // ============================================================
 // HyperExcellence - Galerie photos preuves (Circuit 7)
+// Migre vers le Design System (Phase 2 - finalisation)
 // ============================================================
 import { useEffect, useState } from 'react';
 import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, TASK_STATUS_LABELS } from '../constants';
+import { Button } from '../components/ui/Button';
 
 interface PhotoItem {
   $id: string;
@@ -94,11 +96,7 @@ export default function PhotosGalleryPage() {
                 onClick={() => setSelectedPhoto(p)}
                 className="text-left bg-slate-900 border border-slate-800 rounded-lg overflow-hidden"
               >
-                <img
-                  src={p.photoUrl}
-                  alt={p.taskLabel}
-                  className="w-full h-32 object-cover"
-                />
+                <img src={p.photoUrl} alt={p.taskLabel} className="w-full h-32 object-cover" />
                 <div className="p-2">
                   <p className="text-xs font-medium text-slate-200 line-clamp-2">
                     {p.taskLabel}
@@ -139,12 +137,9 @@ export default function PhotosGalleryPage() {
                 {new Date(selectedPhoto.executedAt).toLocaleString('fr-FR')}
               </p>
             </div>
-            <button
-              onClick={() => setSelectedPhoto(null)}
-              className="w-full rounded-lg bg-slate-800 py-2 text-sm"
-            >
+            <Button variant="ghost" size="md" fullWidth onClick={() => setSelectedPhoto(null)}>
               Fermer
-            </button>
+            </Button>
           </div>
         </div>
       )}
