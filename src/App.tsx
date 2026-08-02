@@ -12,7 +12,7 @@ import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import TVDashboardPage from './pages/TVDashboardPage';
 import { ROLES } from './constants';
-
+import AdminCircuitsPage from './pages/AdminCircuitsPage';
 type View =
   | 'home'
   | 'employees'
