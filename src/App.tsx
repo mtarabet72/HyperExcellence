@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import AdminTasksPage from './pages/AdminTasksPage';
 import AdminCircuitsPage from './pages/AdminCircuitsPage';
+import AdminPermanencePage from './pages/AdminPermanencePage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
@@ -13,13 +14,13 @@ import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import TVDashboardPage from './pages/TVDashboardPage';
 import { ROLES } from './constants';
-import AdminPermanencePage from './pages/AdminPermanencePage';
 
 type View =
   | 'home'
   | 'employees'
   | 'tasks'
   | 'circuits'
+  | 'permanence'
   | 'checklist'
   | 'nonconformites'
   | 'dashboard'
@@ -68,6 +69,7 @@ function App() {
         {view === 'employees' && <AdminEmployeesPage />}
         {view === 'tasks' && <AdminTasksPage />}
         {view === 'circuits' && <AdminCircuitsPage />}
+        {view === 'permanence' && <AdminPermanencePage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
         {view === 'dashboard' && <DashboardPage />}
@@ -191,6 +193,15 @@ function App() {
               className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
             >
               {t('manageCircuits')}
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('permanence')}
+              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('managePermanence')}
             </button>
           )}
         </div>
