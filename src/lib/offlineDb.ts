@@ -34,17 +34,25 @@ export interface CachedTaskList {
   cachedAt: number;
 }
 
+export interface CachedCircuits {
+  id: 'all'; // une seule entree, cle fixe
+  circuitsJson: string;
+  cachedAt: number;
+}
+
 class OfflineDatabase extends Dexie {
   pendingExecutions!: Table<PendingExecution, string>;
   pendingNCs!: Table<PendingNC, string>;
   cachedTasks!: Table<CachedTaskList, string>;
+  cachedCircuits!: Table<CachedCircuits, string>;
 
   constructor() {
     super('hyperexcellence-offline');
-    this.version(3).stores({
+    this.version(4).stores({
       pendingExecutions: 'offlineId, createdLocallyAt',
       pendingNCs: 'offlineId, createdLocallyAt',
       cachedTasks: 'checklistId, cachedAt',
+      cachedCircuits: 'id, cachedAt',
     });
   }
 }
