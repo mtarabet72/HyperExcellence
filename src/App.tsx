@@ -4,6 +4,7 @@ import { useLanguage } from './contexts/LanguageContext';
 import LoginPage from './pages/LoginPage';
 import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import AdminTasksPage from './pages/AdminTasksPage';
+import AdminCircuitsPage from './pages/AdminCircuitsPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
@@ -12,11 +13,12 @@ import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import TVDashboardPage from './pages/TVDashboardPage';
 import { ROLES } from './constants';
-import AdminCircuitsPage from './pages/AdminCircuitsPage';
+
 type View =
   | 'home'
   | 'employees'
   | 'tasks'
+  | 'circuits'
   | 'checklist'
   | 'nonconformites'
   | 'dashboard'
@@ -64,6 +66,7 @@ function App() {
         </div>
         {view === 'employees' && <AdminEmployeesPage />}
         {view === 'tasks' && <AdminTasksPage />}
+        {view === 'circuits' && <AdminCircuitsPage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
         {view === 'dashboard' && <DashboardPage />}
@@ -178,6 +181,15 @@ function App() {
               className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
             >
               {t('manageTasks')}
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setView('circuits')}
+              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('manageCircuits')}
             </button>
           )}
         </div>
