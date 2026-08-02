@@ -47,7 +47,7 @@ export default function AdminCircuitsPage() {
   const [cNameAr, setCNameAr] = useState('');
   const [cSubtitle, setCSubtitle] = useState('');
   const [cSubtitleAr, setCSubtitleAr] = useState('');
-  const [cDept, setCDept] = useState(DEPARTMENTS[0].id);
+ const [cDept, setCDept] = useState<string>(DEPARTMENTS[0].id);
   const [cZone, setCZone] = useState('');
   const [cNumber, setCNumber] = useState('');
   const [cSort, setCSort] = useState('');
@@ -61,7 +61,7 @@ export default function AdminCircuitsPage() {
   const [eNameAr, setENameAr] = useState('');
   const [eSubtitle, setESubtitle] = useState('');
   const [eSubtitleAr, setESubtitleAr] = useState('');
-  const [eDept, setEDept] = useState('');
+  const [eDept, setEDept] = useState<string>('');
   const [eZone, setEZone] = useState('');
   const [eSort, setESort] = useState('');
   const [eTransversal, setETransversal] = useState(false);
