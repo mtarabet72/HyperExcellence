@@ -2,7 +2,7 @@
 // HyperExcellence - Appwrite Function : modification d'employe
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
 // + Creation NC / Qualification CAPA / Verification CAPA
-// + CRUD des taches (Phase 6)
+// + CRUD des taches + CRUD des circuits (Phase 6)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -369,7 +369,6 @@ export default async ({ req, res, log, error }) => {
 
       const GRAVITES_VALIDES = ['MINEURE', 'MAJEURE', 'CRITIQUE'];
 
-      // Verifie le format "HH:MM" d'une heure cible.
       function heureValide(v) {
         return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
       }
@@ -456,7 +455,6 @@ export default async ({ req, res, log, error }) => {
         if (requiresPhoto !== undefined) payload.requires_photo = !!requiresPhoto;
         if (requiresTemperature !== undefined)
           payload.requires_temperature = !!requiresTemperature;
-        // chaine vide = on efface l'heure cible
         if (executionTime !== undefined) payload.execution_time = executionTime || null;
 
         await databases.updateDocument(DB_ID, 'task_templates', taskId, payload);
@@ -494,6 +492,160 @@ export default async ({ req, res, log, error }) => {
 
         log('Tache ' + (isActive ? 'reactivee' : 'desactivee') + ': ' + taskId);
         return res.json({ success: true, taskId });
+      }
+    }
+
+    // ---------- Branche CRUD circuits (ADMIN uniquement) ----------
+    if (
+      body.action === 'create_circuit' ||
+      body.action === 'update_circuit' ||
+      body.action === 'toggle_circuit'
+    ) {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile || callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve aux administrateurs.' }, 403);
+      }
+
+      // ----- Creation -----
+      if (body.action === 'create_circuit') {
+        const {
+          circuitId,
+          name,
+          nameAr,
+          subtitle,
+          subtitleAr,
+          departmentId,
+          zoneId,
+          circuitNumber,
+          transversal,
+          sortOrder,
+          frequency,
+          prpRef,
+        } = body;
+
+        if (!circuitId || !name || !departmentId || !zoneId) {
+          return res.json({ error: 'Champs requis manquants (id, nom, rayon, zone).' }, 400);
+        }
+        if (!/^[a-z0-9-]+$/.test(circuitId)) {
+          return res.json({ error: 'Identifiant invalide (minuscules, chiffres, tirets).' }, 400);
+        }
+
+        try {
+          await databases.getDocument(DB_ID, 'checklist_templates', circuitId);
+          return res.json({ error: 'Un circuit avec cet identifiant existe deja.' }, 409);
+        } catch {
+          // n'existe pas -> on peut creer
+        }
+
+        const circuit = await databases.createDocument(
+          DB_ID,
+          'checklist_templates',
+          circuitId,
+          {
+            name,
+            name_ar: nameAr || null,
+            subtitle: subtitle || null,
+            subtitle_ar: subtitleAr || null,
+            department_id: departmentId,
+            zone_id: zoneId,
+            circuit_number: circuitNumber !== undefined ? Number(circuitNumber) : null,
+            transversal: !!transversal,
+            sort_order: sortOrder !== undefined ? Number(sortOrder) : 999,
+            frequency: frequency || 'QUOTIDIENNE',
+            prp_ref: prpRef || null,
+            is_active: true,
+          }
+        );
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: 'CIRCUIT_CREE',
+          entity_type: 'checklist_template',
+          entity_id: circuit.$id,
+          payload: JSON.stringify({ circuitId, name, departmentId, zoneId }),
+        });
+
+        log('Circuit cree: ' + circuit.$id);
+        return res.json({ success: true, circuitId: circuit.$id });
+      }
+
+      // ----- Modification -----
+      if (body.action === 'update_circuit') {
+        const {
+          circuitId,
+          name,
+          nameAr,
+          subtitle,
+          subtitleAr,
+          departmentId,
+          zoneId,
+          circuitNumber,
+          transversal,
+          sortOrder,
+          frequency,
+          prpRef,
+        } = body;
+
+        if (!circuitId) {
+          return res.json({ error: 'circuitId manquant.' }, 400);
+        }
+
+        const payload = {};
+        if (name !== undefined) payload.name = name;
+        if (nameAr !== undefined) payload.name_ar = nameAr || null;
+        if (subtitle !== undefined) payload.subtitle = subtitle || null;
+        if (subtitleAr !== undefined) payload.subtitle_ar = subtitleAr || null;
+        if (departmentId !== undefined) payload.department_id = departmentId;
+        if (zoneId !== undefined) payload.zone_id = zoneId;
+        if (circuitNumber !== undefined) payload.circuit_number = Number(circuitNumber);
+        if (transversal !== undefined) payload.transversal = !!transversal;
+        if (sortOrder !== undefined) payload.sort_order = Number(sortOrder);
+        if (frequency !== undefined) payload.frequency = frequency;
+        if (prpRef !== undefined) payload.prp_ref = prpRef || null;
+
+        await databases.updateDocument(DB_ID, 'checklist_templates', circuitId, payload);
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: 'CIRCUIT_MODIFIE',
+          entity_type: 'checklist_template',
+          entity_id: circuitId,
+          payload: JSON.stringify(payload),
+        });
+
+        log('Circuit modifie: ' + circuitId);
+        return res.json({ success: true, circuitId });
+      }
+
+      // ----- Activation / desactivation -----
+      if (body.action === 'toggle_circuit') {
+        const { circuitId, isActive } = body;
+        if (!circuitId || isActive === undefined) {
+          return res.json({ error: 'circuitId ou isActive manquant.' }, 400);
+        }
+
+        await databases.updateDocument(DB_ID, 'checklist_templates', circuitId, {
+          is_active: !!isActive,
+        });
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: isActive ? 'CIRCUIT_REACTIVE' : 'CIRCUIT_DESACTIVE',
+          entity_type: 'checklist_template',
+          entity_id: circuitId,
+          payload: JSON.stringify({ isActive: !!isActive }),
+        });
+
+        log('Circuit ' + (isActive ? 'reactive' : 'desactive') + ': ' + circuitId);
+        return res.json({ success: true, circuitId });
       }
     }
 
