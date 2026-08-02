@@ -1,9 +1,12 @@
 // ============================================================
 // HyperExcellence - Export Excel historique filtrable (Circuit 7)
+// Migre vers le Design System (Phase 2 - finalisation)
 // ============================================================
 import { useState } from 'react';
 import { generateExcelExport } from '../lib/excelExport';
 import { DEPARTMENTS, GRAVITES, GRAVITE_LABELS, Gravite } from '../constants';
+import { Button } from '../components/ui/Button';
+import { Label, Input, Select } from '../components/ui/Field';
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -41,7 +44,7 @@ export default function ExcelExportPage() {
         `Export généré : ${result.executionsCount} exécutions, ${result.ncCount} non conformités.`
       );
     } catch {
-      setResultMessage('Erreur lors de la génération de l\'export.');
+      setResultMessage("Erreur lors de la génération de l'export.");
     } finally {
       setIsExporting(false);
     }
@@ -59,33 +62,31 @@ export default function ExcelExportPage() {
         <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Date début</label>
-              <input
+              <Label>Date début</Label>
+              <Input
+                on="card"
                 type="date"
                 value={dateDebut}
                 onChange={(e) => setDateDebut(e.target.value)}
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Date fin</label>
-              <input
+              <Label>Date fin</Label>
+              <Input
+                on="card"
                 type="date"
                 value={dateFin}
                 onChange={(e) => setDateFin(e.target.value)}
-                className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
-              Département (optionnel)
-            </label>
-            <select
+            <Label>Département (optionnel)</Label>
+            <Select
+              on="card"
               value={departmentId}
               onChange={(e) => setDepartmentId(e.target.value)}
-              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
             >
               <option value="">— Tous les départements —</option>
               {DEPARTMENTS.map((d) => (
@@ -93,38 +94,32 @@ export default function ExcelExportPage() {
                   {d.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
-              Gravité NC (optionnel)
-            </label>
-            <select
-              value={gravite}
-              onChange={(e) => setGravite(e.target.value)}
-              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm"
-            >
+            <Label>Gravité NC (optionnel)</Label>
+            <Select on="card" value={gravite} onChange={(e) => setGravite(e.target.value)}>
               <option value="">— Toutes les gravités —</option>
               {Object.values(GRAVITES).map((g) => (
                 <option key={g} value={g}>
                   {GRAVITE_LABELS[g]}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
-          {resultMessage && (
-            <p className="text-xs text-emerald-400">{resultMessage}</p>
-          )}
+          {resultMessage && <p className="text-xs text-emerald-400">{resultMessage}</p>}
 
-          <button
+          <Button
+            variant="success"
+            size="md"
+            fullWidth
             onClick={handleExport}
             disabled={isExporting}
-            className="w-full rounded-lg bg-emerald-500 text-slate-950 font-semibold py-2.5 text-sm disabled:opacity-50"
           >
-            {isExporting ? 'Génération...' : '📊 Générer l\'export Excel'}
-          </button>
+            {isExporting ? 'Génération...' : "📊 Générer l'export Excel"}
+          </Button>
         </div>
       </div>
     </div>
