@@ -650,6 +650,105 @@ export default async ({ req, res, log, error }) => {
       }
     }
 
+    // ---------- Branche Permanence Magasin (Manager on Duty) ----------
+    if (body.action === 'assign_permanence') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile || callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve aux administrateurs.' }, 403);
+      }
+
+      const { date, matinUserId, soirUserId, trancheUserId, trancheHeureDebut, trancheHeureFin } =
+        body;
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.json({ error: 'Date invalide (format YYYY-MM-DD).' }, 400);
+      }
+
+      // Verifie que les utilisateurs assignes sont bien ADMIN ou RESPONSABLE_RH
+      const eligibleIds = [matinUserId, soirUserId, trancheUserId].filter(Boolean);
+      for (const profileId of eligibleIds) {
+        const p = await databases.getDocument(DB_ID, 'profiles', profileId);
+        if (p.role !== 'ADMIN' && p.role !== 'RESPONSABLE_RH') {
+          return res.json(
+            { error: 'Seuls ADMIN et Responsable RH peuvent etre assignes a la permanence.' },
+            400
+          );
+        }
+      }
+
+      const payload = {};
+      if (matinUserId !== undefined) payload.matin_user_id = matinUserId || null;
+      if (soirUserId !== undefined) payload.soir_user_id = soirUserId || null;
+      if (trancheUserId !== undefined) payload.tranche_user_id = trancheUserId || null;
+      if (trancheHeureDebut !== undefined) payload.tranche_heure_debut = trancheHeureDebut || null;
+      if (trancheHeureFin !== undefined) payload.tranche_heure_fin = trancheHeureFin || null;
+
+      let doc;
+      try {
+        doc = await databases.getDocument(DB_ID, 'permanenceplanning', date);
+        doc = await databases.updateDocument(DB_ID, 'permanenceplanning', date, payload);
+      } catch {
+        doc = await databases.createDocument(DB_ID, 'permanenceplanning', date, payload);
+      }
+
+      await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+        actor_id: callerProfile.$id,
+        action: 'PERMANENCE_ASSIGNEE',
+        entity_type: 'permanence_planning',
+        entity_id: date,
+        payload: JSON.stringify(payload),
+      });
+
+      log('Permanence assignee pour ' + date);
+      return res.json({ success: true, date: doc.$id });
+    }
+
+    // ---------- Branche note de passation (responsable du creneau uniquement) ----------
+    if (body.action === 'update_handover_note') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile) {
+        return res.json({ error: 'Profil introuvable.' }, 403);
+      }
+
+      const { date, slot, note } = body;
+      if (!date || !slot || note === undefined) {
+        return res.json({ error: 'Champs requis manquants.' }, 400);
+      }
+      if (!['matin', 'soir', 'tranche'].includes(slot)) {
+        return res.json({ error: 'Creneau invalide.' }, 400);
+      }
+
+      const doc = await databases.getDocument(DB_ID, 'permanenceplanning', date);
+      const assignedField = slot + '_user_id';
+
+      // Seul le responsable assigne a ce creneau (ou un ADMIN) peut modifier la note
+      if (doc[assignedField] !== callerProfile.$id && callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve au responsable de ce creneau.' }, 403);
+      }
+
+      const noteField = slot + '_note';
+      await databases.updateDocument(DB_ID, 'permanenceplanning', date, {
+        [noteField]: note,
+      });
+
+      log('Note de passation mise a jour: ' + date + ' / ' + slot);
+      return res.json({ success: true });
+    }
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
