@@ -25,6 +25,7 @@ function labelForRole(role) {
     'CHEF_SECURITE',
     'CHEF_CAISSE',
     'MAITRE_METIER',
+    'RESPONSABLE_RH',
   ];
   if (supervisorRoles.includes(role)) return 'supervisor';
   return null;
