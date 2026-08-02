@@ -33,6 +33,7 @@ export const translations = {
   manageEmployees: { fr: 'Gérer les employés', ar: 'إدارة الموظفين' },
   manageTasks: { fr: 'Gérer les tâches', ar: 'إدارة المهام' },
   manageCircuits: { fr: 'Gérer les circuits', ar: 'إدارة المسارات' },
+  managePermanence: { fr: 'Planning de permanence', ar: 'جدول المناوبة' },
   // ---------- Rôles ----------
   role_ADMIN: { fr: 'Administrateur QHSE', ar: 'مسؤول الجودة والسلامة' },
   role_CHEF_SECTEUR: { fr: 'Chef de Secteur', ar: 'رئيس القطاع' },
