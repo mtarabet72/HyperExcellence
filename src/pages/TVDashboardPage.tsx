@@ -1,5 +1,7 @@
 // ============================================================
 // HyperExcellence - Ecran TV/Bureau (Circuit 10, affichage continu)
+// Factorise la couleur de conformite via le token du Design System
+// (Phase 2 - finalisation). Mise en page grand ecran conservee.
 // ============================================================
 import { useEffect, useState } from 'react';
 import { Query } from 'appwrite';
@@ -14,6 +16,7 @@ import {
   DEPARTMENTS,
   CIRCUIT_TITLES,
 } from '../constants';
+import { conformiteColor } from '../components/ui/tokens';
 
 const REFRESH_INTERVAL_MS = 60000;
 
@@ -73,8 +76,7 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
     dataByDept[d.departmentId] = d;
   }
 
-  const conformiteColor =
-    stats.tauxConformite >= 90 ? '#10b981' : stats.tauxConformite >= 80 ? '#f97316' : '#ef4444';
+  const tauxColor = conformiteColor(stats.tauxConformite);
 
   const dateLabel = clock.toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -105,7 +107,7 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
         <div className="col-span-1 space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <p className="text-slate-400 text-lg mb-2">Taux de conformite global</p>
-            <p className="text-7xl font-bold" style={{ color: conformiteColor }}>
+            <p className="text-7xl font-bold" style={{ color: tauxColor }}>
               {stats.tauxConformite}%
             </p>
             <p className="text-slate-500 text-lg mt-2">
@@ -114,7 +116,7 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
             <div className="w-full h-3 bg-slate-800 rounded-full mt-4 overflow-hidden">
               <div
                 className="h-full transition-all"
-                style={{ width: stats.tauxConformite + '%', backgroundColor: conformiteColor }}
+                style={{ width: stats.tauxConformite + '%', backgroundColor: tauxColor }}
               />
             </div>
           </div>
@@ -204,8 +206,7 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
                 })
                 .slice(0, 6)
                 .map(function (c) {
-                  const color =
-                    c.tauxConformite >= 90 ? '#10b981' : c.tauxConformite >= 80 ? '#f97316' : '#ef4444';
+                  const color = conformiteColor(c.tauxConformite);
                   return (
                     <div key={c.checklistId} className="flex items-center justify-between">
                       <span className="text-sm text-slate-300 truncate flex-1">
