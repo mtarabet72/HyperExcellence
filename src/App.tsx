@@ -13,6 +13,7 @@ import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import TVDashboardPage from './pages/TVDashboardPage';
 import { ROLES } from './constants';
+import AdminPermanencePage from './pages/AdminPermanencePage';
 
 type View =
   | 'home'
