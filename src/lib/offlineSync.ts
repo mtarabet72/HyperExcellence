@@ -1,12 +1,16 @@
 // ============================================================
 // HyperExcellence - Synchronisation offline -> Appwrite (Circuit 8)
 // Upload différé des photos prises hors-ligne.
+// Les NC hors-ligne passent desormais par la Function serveur
+// (create_nc), pour beneficier des permissions par document
+// (label admin/supervisor + createur), comme les NC en ligne.
 // ============================================================
 import { ID, Query } from 'appwrite';
 import { databases } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS } from '../constants';
 import { offlineDb } from './offlineDb';
 import { uploadTaskPhoto } from './storage';
+import { createNonConformite } from './nonConformites';
 
 export async function syncPendingData(): Promise<{ synced: number; failed: number }> {
   let synced = 0;
@@ -72,17 +76,16 @@ export async function syncPendingData(): Promise<{ synced: number; failed: numbe
 
   for (const nc of pendingNCs) {
     try {
-      const taskExecutionId = executionIdMap[nc.taskExecutionOfflineId] || null;
+      const taskExecutionId = executionIdMap[nc.taskExecutionOfflineId] || undefined;
 
-      await databases.createDocument(APPWRITE_DATABASE_ID, COLLECTIONS.NON_CONFORMITES, ID.unique(), {
-        zone_id: nc.zoneId,
-        task_execution_id: taskExecutionId,
-        gravite: nc.gravite,
-        cause: null,
-        action_immediate: nc.actionImmediate,
-        declared_by: nc.declaredBy,
-        status: 'OUVERTE',
-        closed_at: null,
+      // Passe par la Function serveur (action create_nc) : memes permissions
+      // par document (createur + label admin/supervisor) qu'une NC en ligne.
+      await createNonConformite({
+        zoneId: nc.zoneId,
+        taskExecutionId,
+        gravite: nc.gravite as any,
+        actionImmediate: nc.actionImmediate,
+        declaredBy: nc.declaredBy,
       });
 
       await offlineDb.pendingNCs.delete(nc.offlineId);
