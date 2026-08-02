@@ -2,7 +2,8 @@
 // HyperExcellence - Ecran Checklist (multi-circuits, secteurs, offline, bilingue)
 // Chargement des taches converti a TanStack Query (Phase 1)
 // Migre vers le Design System (Phase 2)
-// Gestion des shifts Matin/Soir + heure cible (Phase 6)
+// Shifts Matin/Soir + heure cible (Phase 6)
+// Circuits lus depuis la base (Phase 6, etape E)
 // ============================================================
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +13,7 @@ import {
   getExecutionsForShift,
   TaskTemplate,
 } from '../lib/tasks';
+import { listCircuits, Circuit } from '../lib/circuits';
 import { createNonConformite } from '../lib/nonConformites';
 import { uploadTaskPhoto } from '../lib/storage';
 import { offlineDb, generateOfflineId } from '../lib/offlineDb';
@@ -38,138 +40,6 @@ import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Label, Select, Textarea } from '../components/ui/Field';
 
-interface CircuitOption {
-  checklistId: string;
-  zoneId: string;
-  departmentId: string;
-  title: string;
-  titleAr: string;
-  subtitle: string;
-  subtitleAr: string;
-  transversal?: boolean;
-}
-
-const CIRCUITS: CircuitOption[] = [
-  {
-    checklistId: 'circuit-1-confort',
-    zoneId: '6a561bea002454e03375',
-    departmentId: 'confort_environnement',
-    title: 'Circuit 1 — Confort & Environnement',
-    titleAr: 'المسار 1 - الراحة والبيئة',
-    subtitle: 'Parking & Entrée principale',
-    subtitleAr: 'الموقف والمدخل الرئيسي',
-  },
-  {
-    checklistId: 'circuit-3-pnd-haccp',
-    zoneId: '6a56a89e0038906c0f21',
-    departmentId: 'boucherie',
-    title: 'Circuit 3 — PND HACCP',
-    titleAr: 'المسار 3 - التنظيف والتطهير',
-    subtitle: 'Nettoyage & Désinfection (rayons frais)',
-    subtitleAr: 'التنظيف والتطهير (الأرفف الطازجة)',
-    transversal: true,
-  },
-  {
-    checklistId: 'circuit-2-boucherie',
-    zoneId: '6a56b03900331e1574ac',
-    departmentId: 'boucherie',
-    title: 'Circuit 2 — Service SBAM Boucherie',
-    titleAr: 'المسار 2 - خدمة اللحوم',
-    subtitle: 'Rayon Boucherie / Volaille',
-    subtitleAr: 'رف اللحوم / الدواجن',
-  },
-  {
-    checklistId: 'circuit-2-fromage-charcuterie',
-    zoneId: '6a56b4120021076ed72b',
-    departmentId: 'fromage_charcuterie',
-    title: 'Circuit 2 — Service SBAM Fromage/Charcuterie',
-    titleAr: 'المسار 2 - خدمة الجبن والمقبلات',
-    subtitle: 'Rayon Fromage / Charcuterie à la coupe',
-    subtitleAr: 'رف الجبن والمقبلات بالقطع',
-  },
-  {
-    checklistId: 'circuit-2-boulangerie',
-    zoneId: '6a56b76b000f36d15a90',
-    departmentId: 'boulangerie',
-    title: 'Circuit 2 — Service SBAM Boulangerie',
-    titleAr: 'المسار 2 - خدمة المخبزة',
-    subtitle: 'Rayon Boulangerie / Pâtisserie',
-    subtitleAr: 'رف المخبزة / الحلويات',
-  },
-  {
-    checklistId: 'circuit-2-poissonnerie',
-    zoneId: '6a56be96001436a1c2ee',
-    departmentId: 'poissonnerie',
-    title: 'Circuit 2 — Service SBAM Poissonnerie',
-    titleAr: 'المسار 2 - خدمة السمك',
-    subtitle: 'Rayon Poissonnerie',
-    subtitleAr: 'رف السمك',
-  },
-  {
-    checklistId: 'circuit-2-traiteur',
-    zoneId: '6a57199f0029e2061a01',
-    departmentId: 'traiteur',
-    title: 'Circuit 2 — Service SBAM Traiteur',
-    titleAr: 'المسار 2 - خدمة الطعام الجاهز',
-    subtitle: 'Rayon Traiteur',
-    subtitleAr: 'رف الطعام الجاهز',
-  },
-  {
-    checklistId: 'circuit-2-fruits-legumes',
-    zoneId: '6a571ca000276c6485cf',
-    departmentId: 'fruits_legumes',
-    title: 'Circuit 2 — Service SBAM Fruits et Légumes',
-    titleAr: 'المسار 2 - خدمة الفواكه والخضر',
-    subtitle: 'Rayon Fruits et Légumes',
-    subtitleAr: 'رف الفواكه والخضر',
-  },
-  {
-    checklistId: 'circuit-2-epices-vrac',
-    zoneId: '6a57203200048282d2d1',
-    departmentId: 'epices_vrac',
-    title: 'Circuit 2 — Service SBAM Épices/Vrac',
-    titleAr: 'المسار 2 - خدمة التوابل',
-    subtitle: 'Rayon Épices / Olives / Vrac',
-    subtitleAr: 'رف التوابل / الزيتون / السائب',
-  },
-  {
-    checklistId: 'circuit-2-electromenager',
-    zoneId: '6a575b18002dbaf4fd24',
-    departmentId: 'electromenager',
-    title: 'Circuit 2 — Service SBAM Electroménager',
-    titleAr: 'المسار 2 - خدمة الأجهزة المنزلية',
-    subtitle: 'Rayon Electroménager',
-    subtitleAr: 'رف الأجهزة المنزلية',
-  },
-  {
-    checklistId: 'circuit-2-textile-pgc',
-    zoneId: '6a575d4f0019d803ff56',
-    departmentId: 'textile_pgc',
-    title: 'Circuit 2 — Service SBAM Textile/PGC',
-    titleAr: 'المسار 2 - خدمة النسيج',
-    subtitle: 'Rayon Textile / Literie / PGC',
-    subtitleAr: 'رف النسيج / الفراش',
-  },
-  {
-    checklistId: 'circuit-4-libre-service',
-    zoneId: '6a569fc40029a16ed2b6',
-    departmentId: 'apls_frais_ls',
-    title: 'Circuit 4 — Libre Service & Ruptures',
-    titleAr: 'المسار 4 - الخدمة الذاتية',
-    subtitle: 'Libre Service Frais',
-    subtitleAr: 'الخدمة الذاتية الطازجة',
-  },
-  {
-    checklistId: 'circuit-5-caisses',
-    zoneId: '6a565b970008bdf42a6b',
-    departmentId: 'caisses',
-    title: 'Circuit 5 — Caisses',
-    titleAr: 'المسار 5 - الصناديق',
-    subtitle: 'Ligne de caisses principale',
-    subtitleAr: 'خط الصناديق الرئيسي',
-  },
-];
-
 const ROLES_FULLY_TRANSVERSAL: string[] = [ROLES.ADMIN];
 const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
 
@@ -185,43 +55,60 @@ export default function ChecklistPage() {
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
 
+  // ---------- Circuits (depuis la base) ----------
+  const { data: allCircuits = [], isLoading: circuitsLoading } = useQuery({
+    queryKey: ['circuits'],
+    queryFn: listCircuits,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const visibleCircuits = (() => {
     if (!profile) return [];
-    if (ROLES_FULLY_TRANSVERSAL.includes(profile.role)) return CIRCUITS;
+    if (ROLES_FULLY_TRANSVERSAL.includes(profile.role)) return allCircuits;
     if (ROLES_SECTOR_WIDE.includes(profile.role as any) && profile.sector) {
-      return CIRCUITS.filter((c) => getSectorForDepartment(c.departmentId) === profile.sector);
+      return allCircuits.filter(
+        (c) => getSectorForDepartment(c.departmentId) === profile.sector
+      );
     }
-    return CIRCUITS.filter(
+    return allCircuits.filter(
       (c) =>
         c.departmentId === profile.department_id ||
         (c.transversal && ROLES_ACCES_TRANSVERSAL.includes(profile.role))
     );
   })();
 
-  const [selectedCircuit, setSelectedCircuit] = useState<CircuitOption | null>(
-    visibleCircuits[0] || null
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Selectionne le premier circuit visible une fois la liste chargee
+  useEffect(() => {
+    if (!selectedId && visibleCircuits.length > 0) {
+      setSelectedId(visibleCircuits[0].checklistId);
+    }
+  }, [visibleCircuits, selectedId]);
+
+  const selectedCircuit: Circuit | null =
+    visibleCircuits.find((c) => c.checklistId === selectedId) || null;
 
   // ---------- Configuration (shifts, politique de retard) ----------
   const { data: config = DEFAULT_CONFIG } = useQuery({
     queryKey: ['app-config'],
     queryFn: getAppConfig,
-    staleTime: 10 * 60 * 1000, // 10 min : la config bouge rarement
+    staleTime: 10 * 60 * 1000,
   });
 
   const currentShift: Shift = getCurrentShift(config);
   const [viewMode, setViewMode] = useState<'shift' | 'day'>('shift');
   const viewShift = viewMode === 'shift' ? currentShift : null;
 
-  // ---------- Chargement des taches via TanStack Query ----------
+  // ---------- Chargement des taches ----------
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['tasks', selectedCircuit?.checklistId],
     queryFn: () => getTasksForChecklist(selectedCircuit!.checklistId),
     enabled: !!selectedCircuit,
-    staleTime: 5 * 60 * 1000, // 5 min : les taches d'un circuit changent rarement
+    staleTime: 5 * 60 * 1000,
   });
 
-  // ---------- Executions deja enregistrees (shift courant ou journee) ----------
+  // ---------- Executions deja enregistrees ----------
   const { data: serverExecutions = {} } = useQuery({
     queryKey: ['executions', selectedCircuit?.zoneId, viewShift],
     queryFn: () => getExecutionsForShift(selectedCircuit!.zoneId, viewShift),
@@ -251,15 +138,14 @@ export default function ChecklistPage() {
     NON_APPLICABLE: t('status_NON_APPLICABLE' as any),
   };
 
-  /** Statut affiche : etat local (juste enregistre) sinon etat serveur. */
   function statusFor(taskId: string): TaskStatus | undefined {
     return completed[taskId] || (serverExecutions[taskId]?.status as TaskStatus | undefined);
   }
 
-  function circuitTitle(c: CircuitOption) {
+  function circuitTitle(c: Circuit) {
     return language === 'ar' ? c.titleAr : c.title;
   }
-  function circuitSubtitle(c: CircuitOption) {
+  function circuitSubtitle(c: Circuit) {
     return language === 'ar' ? c.subtitleAr : c.subtitle;
   }
 
@@ -298,7 +184,6 @@ export default function ChecklistPage() {
     };
   }, []);
 
-  // Reinitialise l'etat local (coche/photos) a chaque changement de circuit ou de vue
   useEffect(() => {
     setCompleted({});
     setPhotoUrls({});
@@ -357,7 +242,7 @@ export default function ChecklistPage() {
         status,
         photoAfterUrl: photoUrl,
         photoBlob,
-        shift: currentShift, // toujours le shift reel, meme en vue "journee"
+        shift: currentShift,
         enRetard: isLate,
       });
 
@@ -405,6 +290,16 @@ export default function ChecklistPage() {
   }
 
   const doneCount = tasks.filter((tk) => !!statusFor(tk.$id)).length;
+
+  if (circuitsLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-6">
+        <div className="max-w-xl mx-auto">
+          <p className="text-slate-400 text-sm">{t('loadingTasks' as any)}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (visibleCircuits.length === 0) {
     return (
@@ -477,11 +372,7 @@ export default function ChecklistPage() {
             <Label>{t('circuitLabel' as any)}</Label>
             <Select
               value={selectedCircuit?.checklistId}
-              onChange={(e) =>
-                setSelectedCircuit(
-                  visibleCircuits.find((c) => c.checklistId === e.target.value)!
-                )
-              }
+              onChange={(e) => setSelectedId(e.target.value)}
             >
               {visibleCircuits.map((c) => (
                 <option key={c.checklistId} value={c.checklistId}>
@@ -524,9 +415,7 @@ export default function ChecklistPage() {
               const targetTime = task.execution_time || null;
               const isLate = isPastExecutionTime(targetTime);
               const policy = config.politique_retard;
-              // BLOCAGE : plus rien n'est enregistrable une fois l'heure passee
               const isBlocked = isLate && policy === 'BLOCAGE' && !status;
-              // NON_FAIT_AUTO : on interdit "Fait", la tache doit partir en ecart/NC
               const forbidFait = isLate && policy === 'NON_FAIT_AUTO' && !status;
 
               return (
