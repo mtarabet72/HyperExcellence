@@ -1,5 +1,6 @@
 // ============================================================
 // HyperExcellence - Heatmap magasin par département (Circuit 7)
+// Migre vers le Design System (Phase 2 - finalisation)
 // ============================================================
 import { useEffect, useState } from 'react';
 import { getHeatmapData, heatColor, DepartmentHeat } from '../lib/heatmap';
@@ -56,7 +57,7 @@ export default function HeatmapPage() {
             return (
               <div
                 key={dept.id}
-                className="rounded-lg p-3 border border-slate-800"
+                className="rounded-lg p-3 border"
                 style={{ backgroundColor: `${color}20`, borderColor: color }}
               >
                 <p className="text-xs font-medium text-slate-200 leading-tight">{dept.name}</p>
