@@ -55,3 +55,23 @@ export async function listAllCircuits(): Promise<Circuit[]> {
   );
   return (result.documents as any[]).map(mapDoc);
 }
+
+export interface Zone {
+  id: string;
+  name: string;
+  departmentId: string;
+}
+
+/** Liste les zones (pour associer un circuit a une zone cote admin). */
+export async function listZones(): Promise<Zone[]> {
+  const result = await databases.listDocuments(
+    APPWRITE_DATABASE_ID,
+    COLLECTIONS.ZONES,
+    [Query.limit(200)]
+  );
+  return (result.documents as any[]).map((z) => ({
+    id: z.$id,
+    name: z.name || z.$id,
+    departmentId: z.department_id || '',
+  }));
+}
