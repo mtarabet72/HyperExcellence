@@ -649,8 +649,7 @@ export default async ({ req, res, log, error }) => {
         return res.json({ success: true, circuitId });
       }
     }
-
-    // ---------- Branche Permanence Magasin (Manager on Duty) ----------
+   // ---------- Branche Permanence Magasin (Manager on Duty) ----------
     if (body.action === 'assign_permanence') {
       const callerUserId = req.headers['x-appwrite-user-id'];
       if (!callerUserId) {
