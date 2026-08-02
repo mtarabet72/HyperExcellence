@@ -1,10 +1,12 @@
 // ============================================================
 // HyperExcellence - Lecture des circuits (checklists) depuis la base
 // Remplace la liste CIRCUITS codee en dur dans ChecklistPage (Phase 6, etape E).
+// Avec repli hors-ligne via cache Dexie (Phase 6, dette technique corrigee).
 // ============================================================
 import { Query } from 'appwrite';
 import { databases } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS } from '../constants';
+import { offlineDb } from './offlineDb';
 
 export interface Circuit {
   checklistId: string; // = $id du document (ex: "circuit-2-textile-pgc")
@@ -36,17 +38,37 @@ function mapDoc(d: any): Circuit {
   };
 }
 
-/** Tous les circuits actifs, tries par sort_order. */
+/** Tous les circuits actifs, tries par sort_order. Avec repli hors-ligne. */
 export async function listCircuits(): Promise<Circuit[]> {
-  const result = await databases.listDocuments(
-    APPWRITE_DATABASE_ID,
-    COLLECTIONS.CHECKLIST_TEMPLATES,
-    [Query.equal('is_active', true), Query.orderAsc('sort_order'), Query.limit(100)]
-  );
-  return (result.documents as any[]).map(mapDoc);
+  if (navigator.onLine) {
+    try {
+      const result = await databases.listDocuments(
+        APPWRITE_DATABASE_ID,
+        COLLECTIONS.CHECKLIST_TEMPLATES,
+        [Query.equal('is_active', true), Query.orderAsc('sort_order'), Query.limit(100)]
+      );
+      const circuits = (result.documents as any[]).map(mapDoc);
+
+      await offlineDb.cachedCircuits.put({
+        id: 'all',
+        circuitsJson: JSON.stringify(circuits),
+        cachedAt: Date.now(),
+      });
+
+      return circuits;
+    } catch {
+      // fallback cache ci-dessous
+    }
+  }
+
+  const cached = await offlineDb.cachedCircuits.get('all');
+  if (cached) {
+    return JSON.parse(cached.circuitsJson) as Circuit[];
+  }
+  return [];
 }
 
-/** Tous les circuits, actifs ET desactives (pour l'admin). */
+/** Tous les circuits, actifs ET desactives (pour l'admin, toujours en ligne). */
 export async function listAllCircuits(): Promise<Circuit[]> {
   const result = await databases.listDocuments(
     APPWRITE_DATABASE_ID,
