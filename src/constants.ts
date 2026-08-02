@@ -15,6 +15,7 @@ export const ROLES = {
   CHEF_CAISSE: 'CHEF_CAISSE',
   MAITRE_METIER: 'MAITRE_METIER',
   EMPLOYE: 'EMPLOYE',
+  RESPONSABLE_RH: 'RESPONSABLE_RH',
 } as const;
 
 export type UserRole = (typeof ROLES)[keyof typeof ROLES];
@@ -30,6 +31,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   CHEF_CAISSE: 'Chef de Caisse',
   MAITRE_METIER: 'Maitre Metier',
   EMPLOYE: 'Employe / Vendeur',
+  RESPONSABLE_RH: 'Responsable RH',
 };
 
 // ---------- ROLES A ACCES PAR SECTEUR (plusieurs rayons a la fois) ----------
@@ -240,6 +242,7 @@ export const ROLE_RANK: Record<UserRole, number> = {
   CHEF_SECTEUR: 3,
   SUPERVISEUR: 0,
   ADMIN: 4,
+  RESPONSABLE_RH: 2,
 };
 
 export const GRAVITE_MIN_RANK_QUALIFICATION: Record<Gravite, number> = {
