@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './contexts/AuthContext';
 import { useLanguage } from './contexts/LanguageContext';
 import LoginPage from './pages/LoginPage';
@@ -6,6 +7,7 @@ import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import AdminTasksPage from './pages/AdminTasksPage';
 import AdminCircuitsPage from './pages/AdminCircuitsPage';
 import AdminPermanencePage from './pages/AdminPermanencePage';
+import MyFunctionTasksPage from './pages/MyFunctionTasksPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
 import DashboardPage from './pages/DashboardPage';
@@ -14,6 +16,7 @@ import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import TVDashboardPage from './pages/TVDashboardPage';
 import { PermanenceBanner } from './components/PermanenceBanner';
+import { listTasksForRole } from './lib/functionTasks';
 import { ROLES } from './constants';
 
 type View =
@@ -24,6 +27,7 @@ type View =
   | 'tasks'
   | 'circuits'
   | 'permanence'
+  | 'my-function-tasks'
   | 'checklist'
   | 'nonconformites'
   | 'dashboard'
@@ -40,6 +44,14 @@ function App() {
   const { language, setLanguage, t } = useLanguage();
   const [view, setView] = useState<View>('home');
 
+  // Doit rester avant tout "return" conditionnel : les hooks ne peuvent pas
+  // etre appeles de facon conditionnelle. `enabled` gere le cas profil absent.
+  const { data: myFunctionTasks = [] } = useQuery({
+    queryKey: ['function-tasks', profile?.role],
+    queryFn: () => listTasksForRole(profile!.role),
+    enabled: !!profile,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
@@ -55,6 +67,7 @@ function App() {
   const isAdmin = profile.role === ROLES.ADMIN;
   const canSeeHeatmap = profile.role === ROLES.ADMIN || profile.role === ROLES.CHEF_SECTEUR;
   const showHeatmapDirect = canSeeHeatmap && !isAdmin;
+  const hasFunctionTasks = myFunctionTasks.length > 0;
 
   const roleLabelKey = ('role_' + profile.role) as any;
 
@@ -162,6 +175,7 @@ function App() {
         {view === 'tasks' && <AdminTasksPage />}
         {view === 'circuits' && <AdminCircuitsPage />}
         {view === 'permanence' && <AdminPermanencePage />}
+        {view === 'my-function-tasks' && <MyFunctionTasksPage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
         {view === 'dashboard' && <DashboardPage />}
@@ -218,6 +232,15 @@ function App() {
           >
             {t('nonConformites')}
           </button>
+
+          {hasFunctionTasks && (
+            <button
+              onClick={() => setView('my-function-tasks')}
+              className="rounded-lg bg-teal-500/20 text-teal-300 border border-teal-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              Mes tâches de fonction
+            </button>
+          )}
 
           {showHeatmapDirect && (
             <button
