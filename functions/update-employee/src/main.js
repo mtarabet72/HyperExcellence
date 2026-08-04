@@ -3,6 +3,8 @@
 // + Garde-fou de connexion + Escalade automatique CAPA (Cron)
 // + Creation NC / Qualification CAPA / Verification CAPA
 // + CRUD des taches + CRUD des circuits (Phase 6)
+// + Permanence Magasin (Phase 7)
+// + Taches par fonction (Phase 8)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -213,7 +215,7 @@ export default async ({ req, res, log, error }) => {
       const ROLE_RANK = {
         EMPLOYE: 0, ASJ: 0, SUPERVISEUR: 0,
         CHEF_CAISSE: 1, CHEF_SECURITE: 1, MAITRE_METIER: 1, CHEF_RAYON: 1,
-        CHEF_DEPARTEMENT: 2, CHEF_SECTEUR: 3, ADMIN: 4,
+        CHEF_DEPARTEMENT: 2, RESPONSABLE_RH: 2, CHEF_SECTEUR: 3, ADMIN: 4,
       };
       const GRAVITE_MIN_RANK = { MINEURE: 1, MAJEURE: 2, CRITIQUE: 4 };
 
@@ -649,7 +651,8 @@ export default async ({ req, res, log, error }) => {
         return res.json({ success: true, circuitId });
       }
     }
-  // ---------- Branche Permanence Magasin (Manager on Duty) ----------
+
+    // ---------- Branche Permanence Magasin (Manager on Duty) ----------
     if (body.action === 'assign_permanence') {
       const callerUserId = req.headers['x-appwrite-user-id'];
       if (!callerUserId) {
@@ -758,7 +761,6 @@ export default async ({ req, res, log, error }) => {
       const doc = await databases.getDocument(DB_ID, 'permanenceplanning', date);
       const assignedField = slot + '_user_id';
 
-      // Seul le responsable assigne a ce creneau (ou un ADMIN) peut modifier la note
       if (doc[assignedField] !== callerProfile.$id && callerProfile.role !== 'ADMIN') {
         return res.json({ error: 'Reserve au responsable de ce creneau.' }, 403);
       }
@@ -771,6 +773,216 @@ export default async ({ req, res, log, error }) => {
       log('Note de passation mise a jour: ' + date + ' / ' + slot);
       return res.json({ success: true });
     }
+
+    // ---------- Branche CRUD taches de fonction (ADMIN uniquement) ----------
+    if (
+      body.action === 'create_function_task' ||
+      body.action === 'update_function_task' ||
+      body.action === 'toggle_function_task'
+    ) {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile || callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve aux administrateurs.' }, 403);
+      }
+
+      const FREQUENCES_VALIDES = [
+        'QUOTIDIEN',
+        'HEBDO',
+        'MENSUEL',
+        'TRIMESTRIEL',
+        'SEMESTRIEL',
+        'ANNUEL',
+      ];
+
+      // ----- Creation -----
+      if (body.action === 'create_function_task') {
+        const { role, label, labelAr, frequency, description } = body;
+
+        if (!role || !label || !frequency) {
+          return res.json({ error: 'Champs requis manquants.' }, 400);
+        }
+        if (!FREQUENCES_VALIDES.includes(frequency)) {
+          return res.json({ error: 'Frequence invalide.' }, 400);
+        }
+
+        const task = await databases.createDocument(DB_ID, 'functiontasks', ID.unique(), {
+          role,
+          label,
+          label_ar: labelAr || null,
+          frequency,
+          description: description || null,
+          is_active: true,
+        });
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: 'TACHE_FONCTION_CREEE',
+          entity_type: 'function_task',
+          entity_id: task.$id,
+          payload: JSON.stringify({ role, label, frequency }),
+        });
+
+        log('Tache de fonction creee: ' + task.$id);
+        return res.json({ success: true, taskId: task.$id });
+      }
+
+      // ----- Modification -----
+      if (body.action === 'update_function_task') {
+        const { taskId, role, label, labelAr, frequency, description } = body;
+
+        if (!taskId) {
+          return res.json({ error: 'taskId manquant.' }, 400);
+        }
+        if (frequency !== undefined && !FREQUENCES_VALIDES.includes(frequency)) {
+          return res.json({ error: 'Frequence invalide.' }, 400);
+        }
+
+        const payload = {};
+        if (role !== undefined) payload.role = role;
+        if (label !== undefined) payload.label = label;
+        if (labelAr !== undefined) payload.label_ar = labelAr || null;
+        if (frequency !== undefined) payload.frequency = frequency;
+        if (description !== undefined) payload.description = description || null;
+
+        await databases.updateDocument(DB_ID, 'functiontasks', taskId, payload);
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: 'TACHE_FONCTION_MODIFIEE',
+          entity_type: 'function_task',
+          entity_id: taskId,
+          payload: JSON.stringify(payload),
+        });
+
+        log('Tache de fonction modifiee: ' + taskId);
+        return res.json({ success: true, taskId });
+      }
+
+      // ----- Activation / desactivation -----
+      if (body.action === 'toggle_function_task') {
+        const { taskId, isActive } = body;
+        if (!taskId || isActive === undefined) {
+          return res.json({ error: 'taskId ou isActive manquant.' }, 400);
+        }
+
+        await databases.updateDocument(DB_ID, 'functiontasks', taskId, {
+          is_active: !!isActive,
+        });
+
+        await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+          actor_id: callerProfile.$id,
+          action: isActive ? 'TACHE_FONCTION_REACTIVEE' : 'TACHE_FONCTION_DESACTIVEE',
+          entity_type: 'function_task',
+          entity_id: taskId,
+          payload: JSON.stringify({ isActive: !!isActive }),
+        });
+
+        log('Tache de fonction ' + (isActive ? 'reactivee' : 'desactivee') + ': ' + taskId);
+        return res.json({ success: true, taskId });
+      }
+    }
+
+    // ---------- Branche validation tache de fonction (role concerne ou ADMIN) ----------
+    if (body.action === 'complete_function_task') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile) {
+        return res.json({ error: 'Profil introuvable.' }, 403);
+      }
+
+      const { taskId, note } = body;
+      if (!taskId) {
+        return res.json({ error: 'taskId manquant.' }, 400);
+      }
+
+      const task = await databases.getDocument(DB_ID, 'functiontasks', taskId);
+
+      if (callerProfile.role !== task.role && callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve au role concerne par cette tache.' }, 403);
+      }
+
+      function getPeriodKey(frequency) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+
+        function isoWeek(d) {
+          const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+          const dayNum = date.getUTCDay() || 7;
+          date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+          const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+          return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+        }
+
+        switch (frequency) {
+          case 'QUOTIDIEN':
+            return year + '-' + String(month).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+          case 'HEBDO':
+            return year + '-W' + String(isoWeek(now)).padStart(2, '0');
+          case 'MENSUEL':
+            return year + '-' + String(month).padStart(2, '0');
+          case 'TRIMESTRIEL':
+            return year + '-T' + Math.ceil(month / 3);
+          case 'SEMESTRIEL':
+            return year + '-S' + (month <= 6 ? 1 : 2);
+          case 'ANNUEL':
+            return String(year);
+          default:
+            return year + '-' + String(month).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        }
+      }
+
+      const periodKey = getPeriodKey(task.frequency);
+
+      const existing = await databases.listDocuments(DB_ID, 'functiontaskcompletions', [
+        Query.equal('task_id', taskId),
+        Query.equal('period_key', periodKey),
+        Query.limit(1),
+      ]);
+      if (existing.documents.length > 0) {
+        return res.json({ error: 'Deja validee pour cette periode.' }, 409);
+      }
+
+      const completion = await databases.createDocument(
+        DB_ID,
+        'functiontaskcompletions',
+        ID.unique(),
+        {
+          task_id: taskId,
+          period_key: periodKey,
+          completed_by: callerProfile.$id,
+          completed_at: new Date().toISOString(),
+          note: note || null,
+        }
+      );
+
+      await databases.createDocument(DB_ID, 'audit_log', ID.unique(), {
+        actor_id: callerProfile.$id,
+        action: 'TACHE_FONCTION_VALIDEE',
+        entity_type: 'function_task',
+        entity_id: taskId,
+        payload: JSON.stringify({ periodKey, note }),
+      });
+
+      log('Tache de fonction validee: ' + taskId + ' / ' + periodKey);
+      return res.json({ success: true, completionId: completion.$id });
+    }
+
     // ---------- Branche modification employe (ADMIN requis) ----------
     const callerUserId = req.headers['x-appwrite-user-id'];
     if (!callerUserId) {
