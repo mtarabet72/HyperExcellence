@@ -1,6 +1,7 @@
 // ============================================================
 // HyperExcellence - Ecran Admin : gestion des taches de fonction (Phase 8)
-// CRUD via la Function serveur.
+// CRUD via la Function serveur. Filtre optionnel par secteur pour les
+// roles a portee sectorielle (CHEF_SECTEUR, CHEF_DEPARTEMENT).
 // ============================================================
 import { useState, FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,7 +15,14 @@ import {
   FunctionTask,
   Frequency,
 } from '../lib/functionTasks';
-import { ROLES, ROLE_LABELS, UserRole } from '../constants';
+import {
+  ROLES,
+  ROLE_LABELS,
+  ROLES_SECTOR_WIDE,
+  SECTORS,
+  SECTOR_LABELS,
+  UserRole,
+} from '../constants';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -43,6 +51,7 @@ export default function AdminFunctionTasksPage() {
 
   // ---------- Creation ----------
   const [cRole, setCRole] = useState<UserRole>(ROLES.CHEF_SECURITE);
+  const [cSector, setCSector] = useState('');
   const [cLabel, setCLabel] = useState('');
   const [cLabelAr, setCLabelAr] = useState('');
   const [cFrequency, setCFrequency] = useState<Frequency>(FREQUENCIES.QUOTIDIEN);
@@ -53,10 +62,14 @@ export default function AdminFunctionTasksPage() {
   // ---------- Edition ----------
   const [editingId, setEditingId] = useState<string | null>(null);
   const [eRole, setERole] = useState<UserRole>(ROLES.CHEF_SECURITE);
+  const [eSector, setESector] = useState('');
   const [eLabel, setELabel] = useState('');
   const [eLabelAr, setELabelAr] = useState('');
   const [eFrequency, setEFrequency] = useState<Frequency>(FREQUENCIES.QUOTIDIEN);
   const [eDescription, setEDescription] = useState('');
+
+  const cIsSectorRole = ROLES_SECTOR_WIDE.includes(cRole);
+  const eIsSectorRole = ROLES_SECTOR_WIDE.includes(eRole);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -75,11 +88,13 @@ export default function AdminFunctionTasksPage() {
         labelAr: cLabelAr.trim() || undefined,
         frequency: cFrequency,
         description: cDescription.trim() || undefined,
+        sector: cIsSectorRole ? cSector || undefined : undefined,
       });
       setSuccess(`Tâche "${cLabel.trim()}" créée.`);
       setCLabel('');
       setCLabelAr('');
       setCDescription('');
+      setCSector('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la création.');
     }
@@ -88,6 +103,7 @@ export default function AdminFunctionTasksPage() {
   function startEdit(task: FunctionTask) {
     setEditingId(task.$id);
     setERole(task.role);
+    setESector(task.sector || '');
     setELabel(task.label);
     setELabelAr(task.labelAr);
     setEFrequency(task.frequency);
@@ -107,11 +123,17 @@ export default function AdminFunctionTasksPage() {
         labelAr: eLabelAr.trim(),
         frequency: eFrequency,
         description: eDescription.trim(),
+        sector: eIsSectorRole ? eSector : '',
       });
       setEditingId(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erreur lors de la modification.');
     }
+  }
+
+  function sectorLabel(task: FunctionTask) {
+    if (!task.sector) return null;
+    return SECTOR_LABELS[task.sector as keyof typeof SECTOR_LABELS] || task.sector;
   }
 
   return (
@@ -120,7 +142,8 @@ export default function AdminFunctionTasksPage() {
         <h1 className="text-xl font-bold">Tâches de fonction</h1>
         <p className="text-sm text-slate-400">
           Tâches récurrentes rattachées à un rôle (pas à un rayon). Une validation suffit pour
-          toute l'équipe ayant ce rôle.
+          toute l'équipe ayant ce rôle. Pour les rôles à portée sectorielle (Chef Secteur, Chef
+          Département), tu peux restreindre la tâche à un secteur précis.
         </p>
 
         {/* ---------- Création ---------- */}
@@ -133,7 +156,14 @@ export default function AdminFunctionTasksPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Rôle concerné</Label>
-              <Select on="card" value={cRole} onChange={(e) => setCRole(e.target.value as UserRole)}>
+              <Select
+                on="card"
+                value={cRole}
+                onChange={(e) => {
+                  setCRole(e.target.value as UserRole);
+                  setCSector('');
+                }}
+              >
                 {Object.values(ROLES).map((r) => (
                   <option key={r} value={r}>
                     {ROLE_LABELS[r]}
@@ -156,6 +186,20 @@ export default function AdminFunctionTasksPage() {
               </Select>
             </div>
           </div>
+
+          {cIsSectorRole && (
+            <div>
+              <Label>Secteur (optionnel — laisser vide = tous les secteurs)</Label>
+              <Select on="card" value={cSector} onChange={(e) => setCSector(e.target.value)}>
+                <option value="">— Tous les secteurs —</option>
+                {Object.values(SECTORS).map((s) => (
+                  <option key={s} value={s}>
+                    {SECTOR_LABELS[s]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label>Libellé (français)</Label>
@@ -213,6 +257,7 @@ export default function AdminFunctionTasksPage() {
                 const isEditing = editingId === task.$id;
                 const isToggling =
                   toggleMutation.isPending && toggleMutation.variables?.taskId === task.$id;
+                const sLabel = sectorLabel(task);
 
                 return (
                   <Card key={task.$id} className={task.isActive ? '' : 'opacity-60'}>
@@ -222,7 +267,10 @@ export default function AdminFunctionTasksPage() {
                           <p className="text-sm font-medium flex-1">{task.label}</p>
                           <Badge>{FREQUENCY_LABELS[task.frequency]}</Badge>
                         </div>
-                        <p className="text-xs text-slate-400">{ROLE_LABELS[task.role]}</p>
+                        <p className="text-xs text-slate-400">
+                          {ROLE_LABELS[task.role]}
+                          {sLabel && ` · ${sLabel}`}
+                        </p>
                         {task.description && (
                           <p className="text-xs text-slate-500">{task.description}</p>
                         )}
@@ -236,7 +284,10 @@ export default function AdminFunctionTasksPage() {
                           <Select
                             on="card"
                             value={eRole}
-                            onChange={(e) => setERole(e.target.value as UserRole)}
+                            onChange={(e) => {
+                              setERole(e.target.value as UserRole);
+                              setESector('');
+                            }}
                           >
                             {Object.values(ROLES).map((r) => (
                               <option key={r} value={r}>
@@ -256,6 +307,16 @@ export default function AdminFunctionTasksPage() {
                             ))}
                           </Select>
                         </div>
+                        {eIsSectorRole && (
+                          <Select on="card" value={eSector} onChange={(e) => setESector(e.target.value)}>
+                            <option value="">— Tous les secteurs —</option>
+                            {Object.values(SECTORS).map((s) => (
+                              <option key={s} value={s}>
+                                {SECTOR_LABELS[s]}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
                         <Input
                           on="card"
                           type="text"
