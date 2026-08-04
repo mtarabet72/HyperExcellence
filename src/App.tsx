@@ -50,7 +50,7 @@ function App() {
   // etre appeles de facon conditionnelle. `enabled` gere le cas profil absent.
   const { data: myFunctionTasks = [] } = useQuery({
     queryKey: ['function-tasks', profile?.role],
-    queryFn: () => listTasksForRole(profile!.role),
+    queryFn: () => listTasksForRole(profile!.role, profile!.sector),
     enabled: !!profile,
   });
 
