@@ -64,6 +64,7 @@ function emptyDay(date: string): PermanenceDay {
   };
 }
 
+/** Cle de date au format YYYY-MM-DD, calculee en heure LOCALE (pas UTC). */
 export function getLocalDateKey(d: Date = new Date()): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -120,8 +121,8 @@ export async function getActiveResponsible(
   at: Date = new Date()
 ): Promise<{ userId: string | null; date: string; note: string }> {
   const config = await getAppConfig().catch(() => DEFAULT_CONFIG);
-  const todayKey = dateKey(at);
-  const yesterdayKey = dateKey(yesterday(at));
+  const todayKey = getLocalDateKey(at);
+  const yesterdayKey = getLocalDateKey(yesterday(at));
   const [today, yesterdayPlan] = await Promise.all([
     getPermanenceForDate(todayKey),
     getPermanenceForDate(yesterdayKey),
