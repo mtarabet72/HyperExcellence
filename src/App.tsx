@@ -13,11 +13,13 @@ import ExcelExportPage from './pages/ExcelExportPage';
 import HeatmapPage from './pages/HeatmapPage';
 import PhotosGalleryPage from './pages/PhotosGalleryPage';
 import TVDashboardPage from './pages/TVDashboardPage';
-import { ROLES } from './constants';
 import { PermanenceBanner } from './components/PermanenceBanner';
+import { ROLES } from './constants';
 
 type View =
   | 'home'
+  | 'menu-pilotage'
+  | 'menu-admin'
   | 'employees'
   | 'tasks'
   | 'circuits'
@@ -29,6 +31,9 @@ type View =
   | 'heatmap'
   | 'photos'
   | 'tv';
+
+const MENU_BUTTON_CLASS =
+  'rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56';
 
 function App() {
   const { isLoading, isAuthenticated, profile, logout } = useAuth();
@@ -49,6 +54,7 @@ function App() {
 
   const isAdmin = profile.role === ROLES.ADMIN;
   const canSeeHeatmap = profile.role === ROLES.ADMIN || profile.role === ROLES.CHEF_SECTEUR;
+  const showHeatmapDirect = canSeeHeatmap && !isAdmin;
 
   const roleLabelKey = ('role_' + profile.role) as any;
 
@@ -56,6 +62,91 @@ function App() {
     return <TVDashboardPage onExit={() => setView('home')} />;
   }
 
+  // ---------- Sous-menu Pilotage (ADMIN) ----------
+  if (view === 'menu-pilotage') {
+    return (
+      <div>
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <button onClick={() => setView('home')} className="text-sm text-slate-400">
+            {t('back')}
+          </button>
+          <button onClick={() => logout()} className="text-sm text-slate-400">
+            {t('logout')}
+          </button>
+        </div>
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4">
+          <div className="text-center space-y-2">
+            <h1 className="text-lg font-bold mb-4">Pilotage</h1>
+            <button
+              onClick={() => setView('dashboard')}
+              className="rounded-lg bg-blue-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('dashboard')}
+            </button>
+            <button
+              onClick={() => setView('tv')}
+              className="rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('tvMode')}
+            </button>
+            <button
+              onClick={() => setView('heatmap')}
+              className="rounded-lg bg-purple-500/20 text-purple-300 border border-purple-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('heatmap')}
+            </button>
+            <button
+              onClick={() => setView('excel')}
+              className="rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('excelExport')}
+            </button>
+            <button
+              onClick={() => setView('photos')}
+              className="rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-900 px-4 py-2 text-sm block mx-auto w-56"
+            >
+              {t('photosOfDay')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Sous-menu Administration (ADMIN) ----------
+  if (view === 'menu-admin') {
+    return (
+      <div>
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <button onClick={() => setView('home')} className="text-sm text-slate-400">
+            {t('back')}
+          </button>
+          <button onClick={() => logout()} className="text-sm text-slate-400">
+            {t('logout')}
+          </button>
+        </div>
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4">
+          <div className="text-center space-y-2">
+            <h1 className="text-lg font-bold mb-4">Administration</h1>
+            <button onClick={() => setView('employees')} className={MENU_BUTTON_CLASS}>
+              {t('manageEmployees')}
+            </button>
+            <button onClick={() => setView('tasks')} className={MENU_BUTTON_CLASS}>
+              {t('manageTasks')}
+            </button>
+            <button onClick={() => setView('circuits')} className={MENU_BUTTON_CLASS}>
+              {t('manageCircuits')}
+            </button>
+            <button onClick={() => setView('permanence')} className={MENU_BUTTON_CLASS}>
+              {t('managePermanence')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- Pages de contenu ----------
   if (view !== 'home') {
     return (
       <div>
@@ -81,6 +172,7 @@ function App() {
     );
   }
 
+  // ---------- Accueil ----------
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4">
       <div className="text-center space-y-4">
@@ -103,13 +195,8 @@ function App() {
             العربية
           </button>
         </div>
-        <div className="flex justify-center gap-2">
-          ...
-        </div>
 
         <PermanenceBanner />
-
-        <h1 className="text-2xl font-bold tracking-tight">{t('appName')}</h1>
 
         <h1 className="text-2xl font-bold tracking-tight">{t('appName')}</h1>
         <p className="text-slate-300">
@@ -118,42 +205,6 @@ function App() {
         <p className="text-slate-400 text-sm">{t(roleLabelKey)}</p>
 
         <div className="space-y-2">
-          {isAdmin && (
-            <button
-              onClick={() => setView('dashboard')}
-              className="rounded-lg bg-blue-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
-            >
-              {t('dashboard')}
-            </button>
-          )}
-
-          {isAdmin && (
-            <button
-              onClick={() => setView('tv')}
-              className="rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-900 px-4 py-2 text-sm block mx-auto w-56"
-            >
-              {t('tvMode')}
-            </button>
-          )}
-
-          {canSeeHeatmap && (
-            <button
-              onClick={() => setView('heatmap')}
-              className="rounded-lg bg-purple-500/20 text-purple-300 border border-purple-900 px-4 py-2 text-sm block mx-auto w-56"
-            >
-              {t('heatmap')}
-            </button>
-          )}
-
-          {isAdmin && (
-            <button
-              onClick={() => setView('photos')}
-              className="rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-900 px-4 py-2 text-sm block mx-auto w-56"
-            >
-              {t('photosOfDay')}
-            </button>
-          )}
-
           <button
             onClick={() => setView('checklist')}
             className="rounded-lg bg-amber-500 text-slate-950 font-semibold px-4 py-2 text-sm block mx-auto w-56"
@@ -168,48 +219,30 @@ function App() {
             {t('nonConformites')}
           </button>
 
-          {isAdmin && (
+          {showHeatmapDirect && (
             <button
-              onClick={() => setView('excel')}
-              className="rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-900 px-4 py-2 text-sm block mx-auto w-56"
+              onClick={() => setView('heatmap')}
+              className="rounded-lg bg-purple-500/20 text-purple-300 border border-purple-900 px-4 py-2 text-sm block mx-auto w-56"
             >
-              {t('excelExport')}
+              {t('heatmap')}
             </button>
           )}
 
           {isAdmin && (
             <button
-              onClick={() => setView('employees')}
-              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
+              onClick={() => setView('menu-pilotage')}
+              className="rounded-lg bg-blue-500/20 text-blue-300 border border-blue-900 px-4 py-2 text-sm block mx-auto w-56"
             >
-              {t('manageEmployees')}
+              Pilotage
             </button>
           )}
 
           {isAdmin && (
             <button
-              onClick={() => setView('tasks')}
+              onClick={() => setView('menu-admin')}
               className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
             >
-              {t('manageTasks')}
-            </button>
-          )}
-
-          {isAdmin && (
-            <button
-              onClick={() => setView('circuits')}
-              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
-            >
-              {t('manageCircuits')}
-            </button>
-          )}
-
-          {isAdmin && (
-            <button
-              onClick={() => setView('permanence')}
-              className="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm block mx-auto w-56"
-            >
-              {t('managePermanence')}
+              Administration
             </button>
           )}
         </div>
