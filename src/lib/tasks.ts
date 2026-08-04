@@ -1,10 +1,15 @@
 // ============================================================
 // HyperExcellence - Lecture des taches & enregistrement des executions
+// L'enregistrement en ligne passe par la Function serveur (submit_task_execution)
+// pour que le blocage horaire (execution_time + politique de retard) soit
+// verifie cote serveur, pas seulement cote interface.
 // ============================================================
 import { ID, Query } from 'appwrite';
-import { databases } from './appwrite';
+import { databases, functions } from './appwrite';
 import { APPWRITE_DATABASE_ID, COLLECTIONS, TaskStatus, Gravite } from '../constants';
 import { offlineDb, generateOfflineId } from './offlineDb';
+
+const UPDATE_EMPLOYEE_FUNCTION_ID = '6a592c6000074266e563';
 
 export interface TaskTemplate {
   $id: string;
@@ -64,7 +69,7 @@ export interface SubmitTaskExecutionInput {
   photoBlob?: Blob;
   /** Shift actif au moment de l'execution (fige, jamais recalcule ensuite). */
   shift?: string;
-  /** Vrai si l'heure cible de la tache etait depassee. */
+  /** Vrai si l'heure cible de la tache etait depassee (calcul client, indicatif). */
   enRetard?: boolean;
 }
 
@@ -74,6 +79,19 @@ export interface SubmitResult {
   wasOffline: boolean;
 }
 
+/**
+ * Erreur levee quand le serveur refuse volontairement l'enregistrement
+ * (politique BLOCAGE ou NON_FAIT_AUTO). A afficher telle quelle a
+ * l'utilisateur, JAMAIS a mettre en file d'attente hors-ligne : la
+ * refuser une deuxieme fois au sync ne ferait que perdre le travail.
+ */
+export class PolicyBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PolicyBlockedError';
+  }
+}
+
 export async function submitTaskExecution(
   input: SubmitTaskExecutionInput
 ): Promise<SubmitResult> {
@@ -81,25 +99,37 @@ export async function submitTaskExecution(
 
   if (navigator.onLine && !input.photoBlob) {
     try {
-      const doc = await databases.createDocument(
-        APPWRITE_DATABASE_ID,
-        COLLECTIONS.TASK_EXECUTIONS,
-        ID.unique(),
-        {
-          zone_id: input.zoneId,
-          task_id: input.taskId,
-          executed_by: input.executedBy,
+      const execution = await functions.createExecution(
+        UPDATE_EMPLOYEE_FUNCTION_ID,
+        JSON.stringify({
+          action: 'submit_task_execution',
+          zoneId: input.zoneId,
+          taskId: input.taskId,
           status: input.status,
-          comment: input.comment || null,
-          photo_after: input.photoAfterUrl || null,
-          executed_at: executedAt,
-          shift: input.shift || null,
-          en_retard: input.enRetard ?? false,
-        }
+          comment: input.comment,
+          photoAfterUrl: input.photoAfterUrl,
+          shift: input.shift,
+        }),
+        false
       );
-      return { $id: doc.$id, wasOffline: false };
-    } catch {
-      // bascule file d'attente locale
+
+      const result = JSON.parse(execution.responseBody);
+
+      if (result.error) {
+        if (typeof result.error === 'string' && result.error.startsWith('BLOQUE_HORAIRE:')) {
+          // Refus volontaire du serveur : on remonte l'erreur telle quelle,
+          // pas de bascule en file d'attente locale.
+          throw new PolicyBlockedError(result.error.replace('BLOQUE_HORAIRE: ', ''));
+        }
+        throw new Error(result.error);
+      }
+
+      return { $id: result.executionId, wasOffline: false };
+    } catch (e) {
+      if (e instanceof PolicyBlockedError) {
+        throw e; // ne jamais avaler ce cas dans la file d'attente
+      }
+      // Vraie panne reseau/serveur : bascule file d'attente locale ci-dessous.
     }
   }
 
