@@ -649,7 +649,7 @@ export default async ({ req, res, log, error }) => {
         return res.json({ success: true, circuitId });
       }
     }
-   // ---------- Branche Permanence Magasin (Manager on Duty) ----------
+  // ---------- Branche Permanence Magasin (Manager on Duty) ----------
     if (body.action === 'assign_permanence') {
       const callerUserId = req.headers['x-appwrite-user-id'];
       if (!callerUserId) {
@@ -664,10 +664,29 @@ export default async ({ req, res, log, error }) => {
         return res.json({ error: 'Reserve aux administrateurs.' }, 403);
       }
 
-      const { date, matinUserId, soirUserId, trancheUserId, trancheHeureDebut, trancheHeureFin } =
-        body;
+      const {
+        date,
+        matinUserId,
+        matinHeureDebut,
+        matinHeureFin,
+        soirUserId,
+        soirHeureDebut,
+        soirHeureFin,
+        trancheUserId,
+        trancheHeureDebut,
+        trancheHeureFin,
+      } = body;
       if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         return res.json({ error: 'Date invalide (format YYYY-MM-DD).' }, 400);
+      }
+
+      function heureValide(v) {
+        return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+      }
+      for (const h of [matinHeureDebut, matinHeureFin, soirHeureDebut, soirHeureFin, trancheHeureDebut, trancheHeureFin]) {
+        if (h && !heureValide(h)) {
+          return res.json({ error: 'Heure invalide (format HH:MM): ' + h }, 400);
+        }
       }
 
       // Verifie que les utilisateurs assignes sont bien ADMIN ou RESPONSABLE_RH
@@ -684,7 +703,11 @@ export default async ({ req, res, log, error }) => {
 
       const payload = {};
       if (matinUserId !== undefined) payload.matin_user_id = matinUserId || null;
+      if (matinHeureDebut !== undefined) payload.matin_heure_debut = matinHeureDebut || null;
+      if (matinHeureFin !== undefined) payload.matin_heure_fin = matinHeureFin || null;
       if (soirUserId !== undefined) payload.soir_user_id = soirUserId || null;
+      if (soirHeureDebut !== undefined) payload.soir_heure_debut = soirHeureDebut || null;
+      if (soirHeureFin !== undefined) payload.soir_heure_fin = soirHeureFin || null;
       if (trancheUserId !== undefined) payload.tranche_user_id = trancheUserId || null;
       if (trancheHeureDebut !== undefined) payload.tranche_heure_debut = trancheHeureDebut || null;
       if (trancheHeureFin !== undefined) payload.tranche_heure_fin = trancheHeureFin || null;
