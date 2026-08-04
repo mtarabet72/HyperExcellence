@@ -4,7 +4,7 @@
 // + Creation NC / Qualification CAPA / Verification CAPA
 // + CRUD des taches + CRUD des circuits (Phase 6)
 // + Permanence Magasin (Phase 7)
-// + Taches par fonction (Phase 8)
+// + Taches par fonction, avec filtre secteur (Phase 8)
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -804,7 +804,7 @@ export default async ({ req, res, log, error }) => {
 
       // ----- Creation -----
       if (body.action === 'create_function_task') {
-        const { role, label, labelAr, frequency, description } = body;
+        const { role, label, labelAr, frequency, description, sector } = body;
 
         if (!role || !label || !frequency) {
           return res.json({ error: 'Champs requis manquants.' }, 400);
@@ -819,6 +819,7 @@ export default async ({ req, res, log, error }) => {
           label_ar: labelAr || null,
           frequency,
           description: description || null,
+          sector: sector || null,
           is_active: true,
         });
 
@@ -827,7 +828,7 @@ export default async ({ req, res, log, error }) => {
           action: 'TACHE_FONCTION_CREEE',
           entity_type: 'function_task',
           entity_id: task.$id,
-          payload: JSON.stringify({ role, label, frequency }),
+          payload: JSON.stringify({ role, label, frequency, sector }),
         });
 
         log('Tache de fonction creee: ' + task.$id);
@@ -836,7 +837,7 @@ export default async ({ req, res, log, error }) => {
 
       // ----- Modification -----
       if (body.action === 'update_function_task') {
-        const { taskId, role, label, labelAr, frequency, description } = body;
+        const { taskId, role, label, labelAr, frequency, description, sector } = body;
 
         if (!taskId) {
           return res.json({ error: 'taskId manquant.' }, 400);
@@ -851,6 +852,7 @@ export default async ({ req, res, log, error }) => {
         if (labelAr !== undefined) payload.label_ar = labelAr || null;
         if (frequency !== undefined) payload.frequency = frequency;
         if (description !== undefined) payload.description = description || null;
+        if (sector !== undefined) payload.sector = sector || null;
 
         await databases.updateDocument(DB_ID, 'functiontasks', taskId, payload);
 
@@ -890,7 +892,7 @@ export default async ({ req, res, log, error }) => {
       }
     }
 
-    // ---------- Branche validation tache de fonction (role concerne ou ADMIN) ----------
+    // ---------- Branche validation tache de fonction (role/secteur concerne ou ADMIN) ----------
     if (body.action === 'complete_function_task') {
       const callerUserId = req.headers['x-appwrite-user-id'];
       if (!callerUserId) {
@@ -912,8 +914,10 @@ export default async ({ req, res, log, error }) => {
 
       const task = await databases.getDocument(DB_ID, 'functiontasks', taskId);
 
-      if (callerProfile.role !== task.role && callerProfile.role !== 'ADMIN') {
-        return res.json({ error: 'Reserve au role concerne par cette tache.' }, 403);
+      const sameRole = callerProfile.role === task.role;
+      const sameSector = !task.sector || callerProfile.sector === task.sector;
+      if (!(sameRole && sameSector) && callerProfile.role !== 'ADMIN') {
+        return res.json({ error: 'Reserve au role/secteur concerne par cette tache.' }, 403);
       }
 
       function getPeriodKey(frequency) {
