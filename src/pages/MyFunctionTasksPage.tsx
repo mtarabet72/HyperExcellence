@@ -25,7 +25,7 @@ export default function MyFunctionTasksPage() {
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
     queryKey: ['function-tasks', profile?.role],
-    queryFn: () => listTasksForRole(profile!.role),
+    queryFn: () => listTasksForRole(profile!.role, profile!.sector),
     enabled: !!profile,
   });
 
