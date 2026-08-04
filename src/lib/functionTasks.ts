@@ -2,6 +2,7 @@
 // HyperExcellence - Taches par fonction (Phase 8)
 // Taches recurrentes rattachees a un role (pas a un rayon/circuit),
 // validees une fois par periode (Q/H/M/T/S/A) pour toute l'equipe.
+// Filtre optionnel par secteur pour les roles a portee sectorielle.
 // ============================================================
 import { Query } from 'appwrite';
 import { databases, functions } from './appwrite';
@@ -38,6 +39,7 @@ export interface FunctionTask {
   labelAr: string;
   frequency: Frequency;
   description: string;
+  sector: string | null;
   isActive: boolean;
 }
 
@@ -49,6 +51,7 @@ function mapTask(d: any): FunctionTask {
     labelAr: d.label_ar || d.label,
     frequency: d.frequency,
     description: d.description || '',
+    sector: d.sector || null,
     isActive: d.is_active !== false,
   };
 }
@@ -92,14 +95,23 @@ export function getPeriodKey(frequency: Frequency, at: Date = new Date()): strin
   }
 }
 
-/** Toutes les taches de fonction actives pour un role donne. */
-export async function listTasksForRole(role: UserRole): Promise<FunctionTask[]> {
+/**
+ * Taches actives pour un role donne, filtrees par secteur si le profil
+ * en a un : une tache sans secteur (null) s'applique a tout le monde
+ * ayant ce role ; une tache avec un secteur ne s'applique qu'aux profils
+ * de ce secteur precis.
+ */
+export async function listTasksForRole(
+  role: UserRole,
+  sector?: string | null
+): Promise<FunctionTask[]> {
   const result = await databases.listDocuments(APPWRITE_DATABASE_ID, FUNCTION_TASKS_COLLECTION_ID, [
     Query.equal('role', role),
     Query.equal('is_active', true),
     Query.limit(200),
   ]);
-  return (result.documents as any[]).map(mapTask);
+  const all = (result.documents as any[]).map(mapTask);
+  return all.filter((t) => !t.sector || t.sector === sector);
 }
 
 /** Toutes les taches de fonction, actives et desactivees (pour l'admin). */
@@ -126,8 +138,6 @@ export async function getCompletionsForTasks(
   const out: Record<string, CompletionInfo> = {};
   if (tasks.length === 0) return out;
 
-  // Une requete par tache : le volume de taches de fonction reste faible
-  // (quelques dizaines), donc c'est acceptable en clarte de code.
   await Promise.all(
     tasks.map(async (task) => {
       const periodKey = getPeriodKey(task.frequency);
@@ -176,6 +186,7 @@ export interface CreateFunctionTaskInput {
   labelAr?: string;
   frequency: Frequency;
   description?: string;
+  sector?: string;
 }
 
 export async function createFunctionTask(input: CreateFunctionTaskInput) {
@@ -189,6 +200,7 @@ export interface UpdateFunctionTaskInput {
   labelAr?: string;
   frequency?: Frequency;
   description?: string;
+  sector?: string;
 }
 
 export async function updateFunctionTask(input: UpdateFunctionTaskInput) {
