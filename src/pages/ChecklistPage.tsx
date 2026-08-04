@@ -39,6 +39,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
 import { Label, Select, Textarea } from '../components/ui/Field';
+import { PolicyBlockedError } from '../lib/tasks';
 
 const ROLES_FULLY_TRANSVERSAL: string[] = [ROLES.ADMIN];
 const ROLES_ACCES_TRANSVERSAL: string[] = [ROLES.MAITRE_METIER];
@@ -274,8 +275,12 @@ export default function ChecklistPage() {
       setActionImmediate('');
       await refreshPendingCount();
       queryClient.invalidateQueries({ queryKey: ['executions'] });
-    } catch {
-      alert(t('saveErrorAlert' as any));
+    } catch (err) {
+      if (err instanceof PolicyBlockedError) {
+        alert(err.message);
+      } else {
+        alert(t('saveErrorAlert' as any));
+      }
     } finally {
       setSavingTaskId(null);
     }
