@@ -5,6 +5,7 @@
 // + CRUD des taches + CRUD des circuits (Phase 6)
 // + Permanence Magasin (Phase 7)
 // + Taches par fonction, avec filtre secteur (Phase 8)
+// + Soumission execution de tache avec blocage horaire serveur
 // Fusionne pour rester sous la limite de 2 Functions du plan gratuit.
 // ============================================================
 import { Client, Databases, Users, Query, ID, Permission, Role } from 'node-appwrite';
@@ -985,6 +986,83 @@ export default async ({ req, res, log, error }) => {
 
       log('Tache de fonction validee: ' + taskId + ' / ' + periodKey);
       return res.json({ success: true, completionId: completion.$id });
+    }
+
+    // ---------- Branche soumission execution de tache (en ligne uniquement) ----------
+    if (body.action === 'submit_task_execution') {
+      const callerUserId = req.headers['x-appwrite-user-id'];
+      if (!callerUserId) {
+        return res.json({ error: 'Non authentifie.' }, 401);
+      }
+
+      const callerProfiles = await databases.listDocuments(DB_ID, 'profiles', [
+        Query.equal('user_id', callerUserId),
+      ]);
+      const callerProfile = callerProfiles.documents[0];
+      if (!callerProfile) {
+        return res.json({ error: 'Profil introuvable.' }, 403);
+      }
+
+      const { zoneId, taskId, status, comment, photoAfterUrl, shift } = body;
+      if (!zoneId || !taskId || !status) {
+        return res.json({ error: 'Champs requis manquants.' }, 400);
+      }
+
+      const task = await databases.getDocument(DB_ID, 'task_templates', taskId);
+
+      // Heure actuelle au Maroc, independamment du fuseau du serveur.
+      function moroccoMinutesNow() {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Africa/Casablanca',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        }).formatToParts(new Date());
+        const h = Number(parts.find((p) => p.type === 'hour').value);
+        const m = Number(parts.find((p) => p.type === 'minute').value);
+        return h * 60 + m;
+      }
+
+      let isLate = false;
+      if (task.execution_time) {
+        const [th, tm] = task.execution_time.split(':').map(Number);
+        isLate = moroccoMinutesNow() > th * 60 + tm;
+      }
+
+      if (isLate) {
+        const settingsDoc = await databases
+          .getDocument(DB_ID, 'settings', 'app_config')
+          .catch(() => null);
+        const policy = settingsDoc ? settingsDoc.politique_retard : 'RETARD';
+
+        if (policy === 'BLOCAGE') {
+          return res.json(
+            { error: 'BLOQUE_HORAIRE: Heure limite depassee, enregistrement bloque.' },
+            403
+          );
+        }
+        if (policy === 'NON_FAIT_AUTO' && status === 'FAIT') {
+          return res.json(
+            { error: 'BLOQUE_HORAIRE: Heure depassee, statut Fait non autorise.' },
+            403
+          );
+        }
+      }
+
+      const doc = await databases.createDocument(DB_ID, 'task_executions', ID.unique(), {
+        zone_id: zoneId,
+        task_id: taskId,
+        executed_by: callerProfile.$id,
+        status,
+        comment: comment || null,
+        photo_after: photoAfterUrl || null,
+        executed_at: new Date().toISOString(),
+        shift: shift || null,
+        en_retard: isLate,
+      });
+
+      log('Execution de tache soumise via Function: ' + doc.$id);
+      return res.json({ success: true, executionId: doc.$id });
     }
 
     // ---------- Branche modification employe (ADMIN requis) ----------
