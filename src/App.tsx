@@ -7,6 +7,7 @@ import AdminEmployeesPage from './pages/AdminEmployeesPage';
 import AdminTasksPage from './pages/AdminTasksPage';
 import AdminCircuitsPage from './pages/AdminCircuitsPage';
 import AdminPermanencePage from './pages/AdminPermanencePage';
+import AdminFunctionTasksPage from './pages/AdminFunctionTasksPage';
 import MyFunctionTasksPage from './pages/MyFunctionTasksPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
@@ -27,6 +28,7 @@ type View =
   | 'tasks'
   | 'circuits'
   | 'permanence'
+  | 'admin-function-tasks'
   | 'my-function-tasks'
   | 'checklist'
   | 'nonconformites'
@@ -153,6 +155,9 @@ function App() {
             <button onClick={() => setView('permanence')} className={MENU_BUTTON_CLASS}>
               {t('managePermanence')}
             </button>
+            <button onClick={() => setView('admin-function-tasks')} className={MENU_BUTTON_CLASS}>
+              Tâches de fonction
+            </button>
           </div>
         </div>
       </div>
@@ -175,6 +180,7 @@ function App() {
         {view === 'tasks' && <AdminTasksPage />}
         {view === 'circuits' && <AdminCircuitsPage />}
         {view === 'permanence' && <AdminPermanencePage />}
+        {view === 'admin-function-tasks' && <AdminFunctionTasksPage />}
         {view === 'my-function-tasks' && <MyFunctionTasksPage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
