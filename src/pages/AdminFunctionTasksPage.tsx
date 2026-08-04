@@ -2,6 +2,7 @@
 // HyperExcellence - Ecran Admin : gestion des taches de fonction (Phase 8)
 // CRUD via la Function serveur. Filtre optionnel par secteur pour les
 // roles a portee sectorielle (CHEF_SECTEUR, CHEF_DEPARTEMENT).
+// Suivi des validations (qui, quand) pour supervision ADMIN.
 // ============================================================
 import { useState, FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,11 +11,13 @@ import {
   createFunctionTask,
   updateFunctionTask,
   toggleFunctionTask,
+  getCompletionsForTasks,
   FREQUENCIES,
   FREQUENCY_LABELS,
   FunctionTask,
   Frequency,
 } from '../lib/functionTasks';
+import { listEmployees } from '../lib/employees';
 import {
   ROLES,
   ROLE_LABELS,
@@ -36,9 +39,23 @@ export default function AdminFunctionTasksPage() {
     queryFn: listAllFunctionTasks,
   });
 
+  const { data: completions = {} } = useQuery({
+    queryKey: ['admin-function-task-completions', tasks.map((t) => t.$id)],
+    queryFn: () => getCompletionsForTasks(tasks.filter((t) => t.isActive)),
+    enabled: tasks.length > 0,
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees'],
+    queryFn: listEmployees,
+  });
+  const nameById: Record<string, string> = {};
+  for (const e of employees) nameById[e.$id] = e.full_name;
+
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['admin-function-tasks'] });
     queryClient.invalidateQueries({ queryKey: ['function-tasks'] }); // rafraichit cote employe
+    queryClient.invalidateQueries({ queryKey: ['admin-function-task-completions'] });
   }
 
   const createMutation = useMutation({ mutationFn: createFunctionTask, onSuccess: invalidate });
@@ -277,6 +294,32 @@ export default function AdminFunctionTasksPage() {
                         <Badge tone={task.isActive ? 'success' : 'danger'}>
                           {task.isActive ? 'Active' : 'Désactivée'}
                         </Badge>
+
+                        {task.isActive && (
+                          <div className="pt-1">
+                            {completions[task.$id] ? (
+                              <p className="text-xs text-emerald-400">
+                                ✓ Validée par {nameById[completions[task.$id].completedBy] || '—'}{' '}
+                                le{' '}
+                                {new Date(completions[task.$id].completedAt).toLocaleString('fr-FR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                                {completions[task.$id].note && (
+                                  <span className="block text-slate-500 mt-0.5">
+                                    Note : {completions[task.$id].note}
+                                  </span>
+                                )}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-amber-400">
+                                ⏳ Pas encore validée cette période
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-2">
