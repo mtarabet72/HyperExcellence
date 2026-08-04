@@ -103,6 +103,13 @@ function App() {
             العربية
           </button>
         </div>
+        <div className="flex justify-center gap-2">
+          ...
+        </div>
+
+        <PermanenceBanner />
+
+        <h1 className="text-2xl font-bold tracking-tight">{t('appName')}</h1>
 
         <h1 className="text-2xl font-bold tracking-tight">{t('appName')}</h1>
         <p className="text-slate-300">
