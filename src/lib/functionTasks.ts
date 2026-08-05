@@ -210,3 +210,52 @@ export async function updateFunctionTask(input: UpdateFunctionTaskInput) {
 export async function toggleFunctionTask(taskId: string, isActive: boolean) {
   return callFunction({ action: 'toggle_function_task', taskId, isActive });
 }
+export interface FunctionTaskHeat {
+  bucket: string; // 'FRAIS' | 'PGC' | 'SUPPORT' | 'GENERAL'
+  label: string;
+  total: number;
+  validated: number;
+  taux: number; // 0-100, ou -1 si aucune tache dans ce bucket
+}
+
+/**
+ * Regroupe les taches de fonction actives par secteur (pour Chef Secteur/
+ * Departement), avec une case "GENERAL" pour les roles sans secteur
+ * (Chef Rayon, Securite, Caisse, Maitre Metier, RH, Admin).
+ */
+export async function getFunctionTaskHeatmapData(): Promise<FunctionTaskHeat[]> {
+  const allTasks = await listAllFunctionTasks();
+  const activeTasks = allTasks.filter((t) => t.isActive);
+  const completions = await getCompletionsForTasks(activeTasks);
+
+  const buckets: Record<string, { total: number; validated: number }> = {
+    FRAIS: { total: 0, validated: 0 },
+    PGC: { total: 0, validated: 0 },
+    SUPPORT: { total: 0, validated: 0 },
+    GENERAL: { total: 0, validated: 0 },
+  };
+
+  for (const task of activeTasks) {
+    const key = task.sector || 'GENERAL';
+    if (!buckets[key]) buckets[key] = { total: 0, validated: 0 };
+    buckets[key].total++;
+    if (completions[task.$id]) buckets[key].validated++;
+  }
+
+  const labels: Record<string, string> = {
+    FRAIS: 'Secteur Frais',
+    PGC: 'Secteur PGC',
+    SUPPORT: 'Secteur Support',
+    GENERAL: 'Toutes fonctions',
+  };
+
+  return Object.entries(buckets)
+    .filter(([, v]) => v.total > 0)
+    .map(([bucket, v]) => ({
+      bucket,
+      label: labels[bucket] || bucket,
+      total: v.total,
+      validated: v.validated,
+      taux: v.total > 0 ? Math.round((v.validated / v.total) * 100) : -1,
+    }));
+}
