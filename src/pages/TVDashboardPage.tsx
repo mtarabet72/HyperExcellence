@@ -2,12 +2,14 @@
 // HyperExcellence - Ecran TV/Bureau (Circuit 10, affichage continu)
 // Factorise la couleur de conformite via le token du Design System
 // (Phase 2 - finalisation). Mise en page grand ecran conservee.
+// + Heatmap taches de fonction par secteur, sous la heatmap circuits.
 // ============================================================
 import { useEffect, useState } from 'react';
 import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
 import { getDashboardStats, DashboardStats } from '../lib/kpi';
 import { getHeatmapData, heatColor, DepartmentHeat } from '../lib/heatmap';
+import { getFunctionTaskHeatmapData, FunctionTaskHeat } from '../lib/functionTasks';
 import {
   APPWRITE_DATABASE_ID,
   COLLECTIONS,
@@ -27,13 +29,14 @@ interface TVDashboardPageProps {
 export default function TVDashboardPage(props: TVDashboardPageProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [heatData, setHeatData] = useState<DepartmentHeat[]>([]);
+  const [functionHeatData, setFunctionHeatData] = useState<FunctionTaskHeat[]>([]);
   const [zoneNames, setZoneNames] = useState<Record<string, string>>({});
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [clock, setClock] = useState<Date>(new Date());
 
   async function load() {
     const dashboardStats = await getDashboardStats();
-    const heat = await getHeatmapData();
+    const [heat, funcHeat] = await Promise.all([getHeatmapData(), getFunctionTaskHeatmapData()]);
     const zonesResult = await databases.listDocuments(
       APPWRITE_DATABASE_ID,
       COLLECTIONS.ZONES,
@@ -42,6 +45,7 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
 
     setStats(dashboardStats);
     setHeatData(heat);
+    setFunctionHeatData(funcHeat);
 
     const names: Record<string, string> = {};
     for (const zone of zonesResult.documents as any[]) {
@@ -168,9 +172,9 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
           </div>
         </div>
 
-        <div className="col-span-1">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 h-full">
-            <p className="text-slate-400 text-lg mb-4">Heatmap Magasin</p>
+        <div className="col-span-1 space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <p className="text-slate-400 text-lg mb-4">Heatmap Circuits</p>
             <div className="grid grid-cols-2 gap-3">
               {DEPARTMENTS.map(function (dept) {
                 const heat = dataByDept[dept.id];
@@ -193,6 +197,41 @@ export default function TVDashboardPage(props: TVDashboardPageProps) {
               })}
             </div>
           </div>
+
+          {functionHeatData.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+              <p className="text-slate-400 text-lg mb-4">Heatmap Tâches de fonction</p>
+              <div className="grid grid-cols-2 gap-3">
+                {functionHeatData.map(function (f) {
+                  const color =
+                    f.taux < 0
+                      ? '#334155'
+                      : f.taux >= 90
+                        ? '#10b981'
+                        : f.taux >= 60
+                          ? '#f97316'
+                          : '#ef4444';
+                  return (
+                    <div
+                      key={f.bucket}
+                      className="rounded-xl p-3"
+                      style={{ backgroundColor: color + '25', border: '2px solid ' + color }}
+                    >
+                      <p className="text-sm font-medium text-slate-200 leading-tight">
+                        {f.label}
+                      </p>
+                      <p className="text-2xl font-bold mt-1" style={{ color: color }}>
+                        {f.taux >= 0 ? f.taux + '%' : '-'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {f.validated}/{f.total}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="col-span-1 space-y-6">
