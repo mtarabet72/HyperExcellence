@@ -1,5 +1,6 @@
 // ============================================================
 // HyperExcellence - Export PDF d'audit journalier (Circuit 7)
+// + Rapports periodiques Semaine/Mois/Trimestre/Semestre/Annee
 // ============================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -11,7 +12,11 @@ import {
   TASK_STATUS_LABELS,
   GRAVITE_LABELS,
   PILIER_LABELS_BY_CIRCUIT_NUMBER,
+  SECTOR_LABELS,
+  ROLE_LABELS,
 } from '../constants';
+import { getLocalDateKey, getPermanenceForDate } from './permanence';
+import { listAllFunctionTasks, getPeriodKey } from './functionTasks';
 
 function startOfDay(dateStr?: string): string {
   const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
@@ -279,16 +284,13 @@ export async function generateDailyAuditPDF(dateStr?: string) {
   const filename = 'audit-hyperexcellence-' + targetDateStr + '.pdf';
   doc.save(filename);
 }
+
 // ============================================================
 // Rapports periodiques (Semaine/Mois/Trimestre/Semestre/Annee)
 // Complement au rapport journalier ci-dessus. Contenu allege pour
 // rester lisible sur une longue periode (pas de tableau ligne-par-ligne,
-// pas de photos).
+// pas de photos). Inclut aussi Permanence et Taches de fonction.
 // ============================================================
-import { Query as QueryPeriod } from 'appwrite';
-import { getLocalDateKey, getPermanenceForDate } from './permanence';
-import { listAllFunctionTasks, getPeriodKey } from './functionTasks';
-import { SECTOR_LABELS, ROLE_LABELS } from '../constants';
 
 export type PeriodType = 'SEMAINE' | 'MOIS' | 'TRIMESTRE' | 'SEMESTRE' | 'ANNEE';
 
@@ -333,8 +335,9 @@ function getPeriodDateRange(
   start.setHours(0, 0, 0, 0);
   end.setHours(23, 59, 59, 999);
 
-  const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  return { start, end, label: `${fmt(start)} au ${fmt(end)}` };
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return { start, end, label: fmt(start) + ' au ' + fmt(end) };
 }
 
 /** Toutes les cles de date locale (YYYY-MM-DD) entre deux dates, incluses. Plafonne a 400 jours par securite. */
@@ -363,11 +366,6 @@ function dedupeLatestPerTaskPerDay(executions: any[]): any[] {
 }
 
 export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDateStr?: string) {
-  const jsPDFModule = await import('jspdf');
-  const autoTableModule = await import('jspdf-autotable');
-  const jsPDF = jsPDFModule.default;
-  const autoTable = autoTableModule.default;
-
   const { start, end, label } = getPeriodDateRange(periodType, referenceDateStr);
   const rangeStart = start.toISOString();
   const rangeEnd = end.toISOString();
@@ -390,27 +388,21 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
       databases.listDocuments(APPWRITE_DATABASE_ID, COLLECTIONS.PROFILES, [Query.limit(500)]),
     ]);
 
-  const taskLabels: any = {};
   const taskToChecklist: any = {};
   for (const t of tasksResult.documents as any[]) {
-    taskLabels[t.$id] = t.task_number + '. ' + t.label;
     taskToChecklist[t.$id] = t.checklist_id;
   }
   const checklistPilier: any = {};
-  const checklistNames: any = {};
   for (const c of checklistsResult.documents as any[]) {
     checklistPilier[c.$id] = c.circuit_number;
-    checklistNames[c.$id] = c.name;
   }
   const zoneNames: any = {};
   for (const z of zonesResult.documents as any[]) {
     zoneNames[z.$id] = z.name;
   }
   const profileNames: any = {};
-  const profileById: Record<string, any> = {};
   for (const p of profilesResult.documents as any[]) {
     profileNames[p.$id] = p.full_name;
-    profileById[p.$id] = p;
   }
 
   // ---------- Agregation circuits, dedoublonnee par jour ----------
@@ -425,7 +417,11 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
     const pilierNum = checklistPilier[checklistId] || 0;
     const key = String(pilierNum);
     if (!byPilier[key]) {
-      byPilier[key] = { fait: 0, total: 0, nom: PILIER_LABELS_BY_CIRCUIT_NUMBER[pilierNum] || 'Circuit ' + pilierNum };
+      byPilier[key] = {
+        fait: 0,
+        total: 0,
+        nom: PILIER_LABELS_BY_CIRCUIT_NUMBER[pilierNum] || 'Circuit ' + pilierNum,
+      };
     }
     byPilier[key].total++;
     if (e.status === 'FAIT') byPilier[key].fait++;
@@ -453,17 +449,29 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
     let covered = false;
     if (day.matinUserId) {
       covered = true;
-      permByResponsable[day.matinUserId] = permByResponsable[day.matinUserId] || { matin: 0, soir: 0, tranche: 0 };
+      permByResponsable[day.matinUserId] = permByResponsable[day.matinUserId] || {
+        matin: 0,
+        soir: 0,
+        tranche: 0,
+      };
       permByResponsable[day.matinUserId].matin++;
     }
     if (day.soirUserId) {
       covered = true;
-      permByResponsable[day.soirUserId] = permByResponsable[day.soirUserId] || { matin: 0, soir: 0, tranche: 0 };
+      permByResponsable[day.soirUserId] = permByResponsable[day.soirUserId] || {
+        matin: 0,
+        soir: 0,
+        tranche: 0,
+      };
       permByResponsable[day.soirUserId].soir++;
     }
     if (day.trancheUserId) {
       covered = true;
-      permByResponsable[day.trancheUserId] = permByResponsable[day.trancheUserId] || { matin: 0, soir: 0, tranche: 0 };
+      permByResponsable[day.trancheUserId] = permByResponsable[day.trancheUserId] || {
+        matin: 0,
+        soir: 0,
+        tranche: 0,
+      };
       permByResponsable[day.trancheUserId].tranche++;
     }
     if (!covered) joursNonCouverts++;
@@ -474,22 +482,26 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
   const activeFunctionTasks = allFunctionTasks.filter((t) => t.isActive);
   const functionRows: string[][] = [];
   for (const task of activeFunctionTasks) {
-    const expectedKeys = new Set(dateKeys.map((d) => getPeriodKey(task.frequency, new Date(d + 'T00:00:00'))));
+    const expectedKeys = new Set(
+      dateKeys.map((d) => getPeriodKey(task.frequency, new Date(d + 'T00:00:00')))
+    );
     const completionsResult = await databases.listDocuments(
       APPWRITE_DATABASE_ID,
       'functiontaskcompletions',
-      [QueryPeriod.equal('task_id', task.$id), QueryPeriod.limit(1000)]
+      [Query.equal('task_id', task.$id), Query.limit(1000)]
     );
     const validatedKeys = new Set(
       (completionsResult.documents as any[])
         .map((c) => c.period_key)
         .filter((k) => expectedKeys.has(k))
     );
-    const sectorLabel = task.sector ? SECTOR_LABELS[task.sector as keyof typeof SECTOR_LABELS] : '';
+    const sectorLabel = task.sector
+      ? SECTOR_LABELS[task.sector as keyof typeof SECTOR_LABELS]
+      : '';
     functionRows.push([
       task.label + (sectorLabel ? ' (' + sectorLabel + ')' : ''),
       ROLE_LABELS[task.role] || task.role,
-      `${validatedKeys.size} / ${expectedKeys.size}`,
+      validatedKeys.size + ' / ' + expectedKeys.size,
     ]);
   }
 
@@ -505,7 +517,13 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
   doc.setTextColor(80, 80, 80);
   doc.text('Periode : ' + label, 14, 26);
   doc.text(
-    'Taux de conformite global : ' + tauxGlobal + '% (' + faitExec + '/' + totalExec + ' taches, dedoublonne/jour)',
+    'Taux de conformite global : ' +
+      tauxGlobal +
+      '% (' +
+      faitExec +
+      '/' +
+      totalExec +
+      ' taches, dedoublonne/jour)',
     14,
     33
   );
@@ -540,7 +558,10 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
   }
 
   // ---- NC ----
-  if (y > 230) { doc.addPage(); y = 20; }
+  if (y > 230) {
+    doc.addPage();
+    y = 20;
+  }
   doc.setFontSize(13);
   doc.setTextColor(220, 38, 38);
   doc.text('Non Conformites de la periode', 14, y);
@@ -576,7 +597,10 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
   }
 
   // ---- Permanence ----
-  if (y > 220) { doc.addPage(); y = 20; }
+  if (y > 220) {
+    doc.addPage();
+    y = 20;
+  }
   doc.setFontSize(13);
   doc.setTextColor(11, 61, 145);
   doc.text('Permanence Magasin', 14, y);
@@ -604,7 +628,10 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
 
   // ---- Taches de fonction ----
   if (functionRows.length > 0) {
-    if (y > 220) { doc.addPage(); y = 20; }
+    if (y > 220) {
+      doc.addPage();
+      y = 20;
+    }
     doc.setFontSize(13);
     doc.setTextColor(11, 61, 145);
     doc.text('Taches de fonction', 14, y);
@@ -625,7 +652,12 @@ export async function generatePeriodAuditPDF(periodType: PeriodType, referenceDa
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(
-      'HyperExcellence - Marjane Tanger Medina - Genere le ' + new Date().toLocaleString('fr-FR') + ' - Page ' + i + '/' + pageCount,
+      'HyperExcellence - Marjane Tanger Medina - Genere le ' +
+        new Date().toLocaleString('fr-FR') +
+        ' - Page ' +
+        i +
+        '/' +
+        pageCount,
       14,
       doc.internal.pageSize.height - 8
     );
