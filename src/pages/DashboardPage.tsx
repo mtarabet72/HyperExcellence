@@ -4,13 +4,14 @@
 // Migre vers le Design System (Phase 2)
 // Filtrage par shift (Phase 6)
 // Section taches de fonction, separee des stats circuits (Phase 8+)
+// Rapports periodiques Semaine/Mois/Trimestre/Semestre/Annee
 // ============================================================
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Query } from 'appwrite';
 import { databases } from '../lib/appwrite';
 import { getDashboardStats } from '../lib/kpi';
-import { generateDailyAuditPDF } from '../lib/pdfExport';
+import { generateDailyAuditPDF, generatePeriodAuditPDF, PeriodType } from '../lib/pdfExport';
 import { listOverdueCapas } from '../lib/capa';
 import { listAllFunctionTasks, getCompletionsForTasks } from '../lib/functionTasks';
 import {
@@ -76,6 +77,7 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [shiftFilter, setShiftFilter] = useState<Shift | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPeriod, setIsExportingPeriod] = useState<PeriodType | null>(null);
 
   const isToday = selectedDate === todayISO();
 
@@ -104,6 +106,17 @@ export default function DashboardPage() {
       alert('Erreur lors de la generation du PDF.');
     } finally {
       setIsExporting(false);
+    }
+  }
+
+  async function handleExportPeriod(periodType: PeriodType) {
+    setIsExportingPeriod(periodType);
+    try {
+      await generatePeriodAuditPDF(periodType, selectedDate);
+    } catch {
+      alert('Erreur lors de la generation du rapport.');
+    } finally {
+      setIsExportingPeriod(null);
     }
   }
 
@@ -189,6 +202,33 @@ export default function DashboardPage() {
             ? 'Generation du PDF...'
             : `Exporter l'audit du ${new Date(`${selectedDate}T00:00:00`).toLocaleDateString('fr-FR')} (PDF)`}
         </Button>
+
+        <Card className="space-y-2">
+          <p className="text-xs text-slate-400">
+            Rapports périodiques (circuits + NC + permanence + tâches de fonction)
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ['SEMAINE', 'Semaine'],
+                ['MOIS', 'Mois'],
+                ['TRIMESTRE', 'Trimestre'],
+                ['SEMESTRE', 'Semestre'],
+                ['ANNEE', 'Année'],
+              ] as [PeriodType, string][]
+            ).map(([type, label]) => (
+              <Button
+                key={type}
+                variant="ghost"
+                size="xs"
+                onClick={() => handleExportPeriod(type)}
+                disabled={isExportingPeriod !== null}
+              >
+                {isExportingPeriod === type ? '...' : label}
+              </Button>
+            ))}
+          </div>
+        </Card>
 
         {isToday && overdueCapas.length > 0 && (
           <Card tone="danger" className="space-y-2">
