@@ -8,6 +8,7 @@ import AdminTasksPage from './pages/AdminTasksPage';
 import AdminCircuitsPage from './pages/AdminCircuitsPage';
 import AdminPermanencePage from './pages/AdminPermanencePage';
 import AdminFunctionTasksPage from './pages/AdminFunctionTasksPage';
+import AdminSectorTasksPage from './pages/AdminSectorTasksPage';
 import MyFunctionTasksPage from './pages/MyFunctionTasksPage';
 import ChecklistPage from './pages/ChecklistPage';
 import NonConformitesPage from './pages/NonConformitesPage';
@@ -29,6 +30,7 @@ type View =
   | 'circuits'
   | 'permanence'
   | 'admin-function-tasks'
+  | 'sector-tasks'
   | 'my-function-tasks'
   | 'checklist'
   | 'nonconformites'
@@ -158,6 +160,9 @@ function App() {
             <button onClick={() => setView('admin-function-tasks')} className={MENU_BUTTON_CLASS}>
               Tâches de fonction
             </button>
+            <button onClick={() => setView('sector-tasks')} className={MENU_BUTTON_CLASS}>
+              Suivi par secteur/département
+            </button>
           </div>
         </div>
       </div>
@@ -181,6 +186,7 @@ function App() {
         {view === 'circuits' && <AdminCircuitsPage />}
         {view === 'permanence' && <AdminPermanencePage />}
         {view === 'admin-function-tasks' && <AdminFunctionTasksPage />}
+        {view === 'sector-tasks' && <AdminSectorTasksPage />}
         {view === 'my-function-tasks' && <MyFunctionTasksPage />}
         {view === 'checklist' && <ChecklistPage />}
         {view === 'nonconformites' && <NonConformitesPage />}
