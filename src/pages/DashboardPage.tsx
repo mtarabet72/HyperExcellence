@@ -3,6 +3,7 @@
 // Converti a TanStack Query (Phase 1 - Performance)
 // Migre vers le Design System (Phase 2)
 // Filtrage par shift (Phase 6)
+// Section taches de fonction, separee des stats circuits (Phase 8+)
 // ============================================================
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +12,7 @@ import { databases } from '../lib/appwrite';
 import { getDashboardStats } from '../lib/kpi';
 import { generateDailyAuditPDF } from '../lib/pdfExport';
 import { listOverdueCapas } from '../lib/capa';
+import { listAllFunctionTasks, getCompletionsForTasks } from '../lib/functionTasks';
 import {
   APPWRITE_DATABASE_ID,
   COLLECTIONS,
@@ -53,6 +55,22 @@ async function fetchDashboardData(selectedDate: string, shift: Shift | null) {
   return { stats: dashboardStats, zoneNames, profileNames, overdueCapas: overdue };
 }
 
+/**
+ * Stats des taches de fonction (Chefs, RH, Securite...) : totalement
+ * distinctes du taux de conformite des circuits/checklists terrain,
+ * calculees separement pour ne jamais les melanger.
+ */
+async function fetchFunctionTaskStats() {
+  const allTasks = await listAllFunctionTasks();
+  const activeTasks = allTasks.filter((t) => t.isActive);
+  const completions = await getCompletionsForTasks(activeTasks);
+
+  const validated = activeTasks.filter((t) => completions[t.$id]).length;
+  const pending = activeTasks.length - validated;
+
+  return { total: activeTasks.length, validated, pending };
+}
+
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(todayISO());
@@ -67,8 +85,15 @@ export default function DashboardPage() {
     staleTime: 60 * 1000, // 1 min : le dashboard bouge plus vite que le reste
   });
 
+  const { data: functionStats } = useQuery({
+    queryKey: ['dashboard-function-tasks'],
+    queryFn: fetchFunctionTaskStats,
+    staleTime: 60 * 1000,
+  });
+
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ['dashboard', selectedDate, shiftFilter] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-function-tasks'] });
   }
 
   async function handleExportPDF() {
@@ -342,6 +367,36 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* ==========================================================
+            Section separee : taches de fonction (Chefs, RH, Securite...)
+            Jamais melangee au taux de conformite circuits ci-dessus.
+            ========================================================== */}
+        {functionStats && functionStats.total > 0 && (
+          <div className="pt-2 border-t border-slate-800">
+            <h2 className="text-sm font-semibold text-slate-300 mb-2 mt-3">
+              Tâches de fonction (hors circuits)
+            </h2>
+            <p className="text-xs text-slate-500 mb-2">
+              Suivi indépendant des tâches récurrentes par rôle — non comptabilisées dans le
+              taux de conformité ci-dessus.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Stat
+                align="left"
+                label="Validées (période en cours)"
+                value={functionStats.validated}
+                color={COLORS.success}
+              />
+              <Stat
+                align="left"
+                label="En attente"
+                value={functionStats.pending}
+                color={COLORS.orange}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
